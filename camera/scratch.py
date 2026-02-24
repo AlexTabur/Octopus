@@ -62,6 +62,42 @@ def Mono_numpy(data, nWidth, nHeight):
     return bytes_as_np_array
 
 
+def rotate_z(context, angle1, right):
+    if right:
+        axis = context.axis[context.z2_ang_i]['idx']
+    else:
+        axis = context.axis[context.z1_ang_i]['idx']
+
+    # context.logger.log_warning(str(axis) + " " + str(dir))
+    # return
+
+    if axis != -1:
+        context.current_axis = axis
+        if context.zplatform.is_connected:
+            # print("moving on axis = ", abs(context.current_axis))
+            steps_per_degree = 2470
+            context.zplatform.move(axis, angle1 * steps_per_degree)
+            # print(self.angle1, self.angle2, self.angle1 - self.angle2)
+        else:
+            print("not connected")
+
+
+def move_x(context, delta, right):
+    if right:
+        axis = context.axis[context.x2_line_i]['idx']
+    else:
+        axis = context.axis[context.x1_line_i]['idx']
+    if axis != -1:
+        context.current_axis = axis
+        if context.zplatform.is_connected:
+            # print("moving on axis = ", abs(context.current_axis))
+
+            print(delta)
+            context.zplatform.move(axis, delta * 6000*8/871.894-50*8)
+        else:
+            print("not connected")
+    # context.zcontrollers.move_axis(int(context.axis[context.z2_line_i]['dir_fw']),
+    #                                 context.axis[context.z2_line_i]['idx'])
 # k, b = 2, 3
 # line_a = [0.1, get_y(0.1, k, 3), 5, get_y(5, 2, 3)]
 # print(get_b(line_a))

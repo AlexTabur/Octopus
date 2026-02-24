@@ -4,12 +4,12 @@ from threading import Timer
 import cv2
 from pynput import keyboard
 from win32gui import GetWindowText, GetForegroundWindow
-import time
+
 import axis_ctrl
 from camera.CameraParams_header import *
 from camera.MvCameraControl_class import *
 from camera.MvErrorDefine_const import *
-from camera.scratch import get_k, get_b, get_y, angle, resize_image, Mono_numpy, length, display_img
+from camera.scratch import get_k, get_y, resize_image, Mono_numpy, display_img, rotate_z, move_x
 from core.gui_helper import *
 from core.utils import *
 
@@ -29,9 +29,57 @@ def append_to_lines(line_, lines_2_x, lines_2_y, lines_3_x, lines_3_y):
         lines_3_y.append(line_[3])
 
 
+def init_setting_page():
+    with dpg.group(horizontal=True):
+        with dpg.group():
+            dpg.add_text(default_value=txt.LEFT_PLATFORM)
+            dpg.add_text(default_value="               Acc     Dec")
+            for i in range(0, 6, 1):
+                with dpg.group(horizontal=True):
+                    dpg.add_text(default_value=context.axis[i]['label'])
+                    context.editor_list.append(context.axis[i]['name'] + "Acc")
+                    dpg.add_input_text(label="", tag=context.axis[i]['name'] + "Acc", decimal=True,
+                                       default_value="0", width=50)
+                    context.editor_list.append(context.axis[i]['name'] + "Dec")
+                    dpg.add_input_text(label="", tag=context.axis[i]['name'] + "Dec", decimal=True,
+                                       default_value="0", width=50)
+                    dpg.add_button(label=txt.SET_BTN, height=22, width=100)
+            dpg.add_spacer(height=5)
+        dpg.add_spacer(width=20)
+        with dpg.group():
+            dpg.add_text(default_value=txt.RIGHT_PLATFORM)
+            dpg.add_text(default_value="               Acc     Dec")
+            for i in range(6, 12, 1):
+                with dpg.group(horizontal=True):
+                    dpg.add_text(default_value=context.axis[i]['label'])
+                    context.editor_list.append(context.axis[i]['name'] + "Acc")
+                    dpg.add_input_text(label="", tag=context.axis[i]['name'] + "Acc", decimal=True,
+                                       default_value="0", width=50)
+                    context.editor_list.append(context.axis[i]['name'] + "Dec")
+                    dpg.add_input_text(label="", tag=context.axis[i]['name'] + "Dec", decimal=True,
+                                       default_value="0", width=50)
+                    dpg.add_button(label=txt.SET_BTN, height=22, width=100)
+            dpg.add_spacer(height=5)
+        with dpg.group():
+            dpg.add_text(default_value=txt.TABLE)
+            dpg.add_text(default_value="      Acc     Dec")
+            with dpg.group(horizontal=True):
+                dpg.add_text(default_value=context.axis[12]['label'])
+                context.editor_list.append(context.axis[12]['name'] + "Acc")
+                dpg.add_input_text(label="", tag=context.axis[12]['name'] + "Acc", decimal=True, default_value="0",
+                                   width=50)
+                context.editor_list.append(context.axis[12]['name'] + "Dec")
+                dpg.add_input_text(label="", tag=context.axis[12]['name'] + "Dec", decimal=True, default_value="0",
+                                   width=50)
+                dpg.add_button(label=txt.SET_BTN, height=22, width=100)
+            dpg.add_spacer(height=5)
+
+
 class MotionGUI:
 
     def __init__(self):
+        self.b1 = None
+        self.b2 = None
         self.fixed = False
         self.lines_ = []
         self.buf_grab_image = None
@@ -57,6 +105,8 @@ class MotionGUI:
         self.ctrl_pressed = False
         self.alt_pressed = False
         self.buf_save_image = None
+        self.angle1 = 0
+        self.angle2 = 0
 
         # self.width_xyz, self.height_xyz, self.channels_xyz, self.data_xyz   = dpg.load_image("Pics//xyz.png")
         # dpg.add_dynamic_texture(width=self.width_btn, height=self.height_btn, default_value=self.data_x_p, tag="texture_btn_"+context.axis[0]['name']+"P")
@@ -81,10 +131,10 @@ class MotionGUI:
         if ret_temp != MV_OK:
             return
         self.NeedBufSize = int(stPayloadSize.nCurValue)
-        self.val = 40
+        self.val = 30
         self.val2 = 10 * 2 + 1
-        self.threshold1 = 240
-        self.threshold2 = 255
+        self.threshold1 = 100
+        self.threshold2 = 150
         self.rho = 1  # ui.rho.value()
         self.theta = np.pi / 180 / 10  # ui.theta.value()
         self.threshold = 300
@@ -113,6 +163,7 @@ class MotionGUI:
 
             resized = resize_image(Mono_numpy(self.buf_grab_image, self.n_w, self.n_h), self.val)
             resized = cv2.transpose(cv2.flip(resized, flipCode=1))
+            # cv2.medianBlur(resized, 3, 3, dst=resized)
             edges = cv2.Canny(resized, self.threshold1, self.threshold2)
             # edges &= self.mask
 
@@ -125,40 +176,31 @@ class MotionGUI:
             lines_2_y = []
             lines_3_x = []
             lines_3_y = []
-            str_ = ""
             if self.lines_ is not None:
                 if len(self.lines_) > 1:
                     for line in self.lines_:
-                        x1, y1, x2, y2 = line[0]
-
                         k = get_k(line[0])
-                        b = get_b(line[0])
                         if abs(k) < 1:
-                            # cv2.line(final, (0, int(get_y(0, k, b))),
-                            #          (int(self.n_w * self.val), int(get_y(int(self.n_w * self.val), k, b))),
-                            #          (0, 255, 0),
-                            #          int(0.1 * self.val))
-                            # str_ += f"{np.round(length(line[0]), 3)} {round(angle(line[0]), 3)} \n"
                             append_to_lines(line[0], lines_2_x, lines_2_y, lines_3_x, lines_3_y)
+
             if len(lines_2_x) > 0:
-                m1, b1 = np.polyfit(lines_2_x, lines_2_y, 1)
-                cv2.line(final, (0, int(get_y(0, m1, b1))),
-                         (int(self.n_w * self.val), int(get_y(int(self.n_w * self.val), m1, b1))),
-                         (0, 255, 0),
-                         int(0.1 * self.val))
-            if len(lines_3_x) > 0:
-                m, b = np.polyfit(lines_3_x, lines_3_y, 1)
+                m, b = np.polyfit(lines_2_x, lines_2_y, 1)
+                self.angle1 = np.atan(m) * 180 / np.pi
                 cv2.line(final, (0, int(get_y(0, m, b))),
                          (int(self.n_w * self.val), int(get_y(int(self.n_w * self.val), m, b))),
                          (0, 255, 0),
                          int(0.1 * self.val))
-            # for i in lines_2:
-            #     x1, y1, x2, y2 = i[0], i[1], i[2], i[3]
-            #     cv2.line(final, (x1, y1), (x2, y2), (255, 0, 255), int(0.3 * self.val))
+                self.b1 = b
+            if len(lines_3_x) > 0:
+                m, b = np.polyfit(lines_3_x, lines_3_y, 1)
+                self.angle2 = np.atan(m) * 180 / np.pi
+                cv2.line(final, (0, int(get_y(0, m, b))),
+                         (int(self.n_w * self.val), int(get_y(int(self.n_w * self.val), m, b))),
+                         (0, 255, 0),
+                         int(0.1 * self.val))
+                self.b2 = b
 
-            #     cv2.line(final, (x1, y1), (x2, y2), (255, 0, 255), int(0.3 * self.val))
-            print("lines_2", len(lines_2_x)/2)
-            # print("lines_3_len", len(lines_3))
+            # display_img("camera_1", cv2.resize(cv2.cvtColor(edges, cv2.COLOR_GRAY2RGB), (400, 400)))
             display_img("camera_1", cv2.resize(final, (400, 400)))
 
     def loop(self):
@@ -187,51 +229,6 @@ class MotionGUI:
                 context.logger.log_com("Контроллер стола отключен")
 
     # display_img("camera_1", cv2.resize(cv2.cvtColor(edges, cv2.COLOR_GRAY2RGB), (400, 400)))
-
-    def init_setting_page(self):
-        with dpg.group(horizontal=True):
-            with dpg.group():
-                dpg.add_text(default_value=txt.LEFT_PLATFORM)
-                dpg.add_text(default_value="               Acc     Dec")
-                for i in range(0, 6, 1):
-                    with dpg.group(horizontal=True):
-                        dpg.add_text(default_value=context.axis[i]['label'])
-                        context.editor_list.append(context.axis[i]['name'] + "Acc")
-                        dpg.add_input_text(label="", tag=context.axis[i]['name'] + "Acc", decimal=True,
-                                           default_value="0", width=50)
-                        context.editor_list.append(context.axis[i]['name'] + "Dec")
-                        dpg.add_input_text(label="", tag=context.axis[i]['name'] + "Dec", decimal=True,
-                                           default_value="0", width=50)
-                        dpg.add_button(label=txt.SET_BTN, height=22, width=100)
-                dpg.add_spacer(height=5)
-            dpg.add_spacer(width=20)
-            with dpg.group():
-                dpg.add_text(default_value=txt.RIGHT_PLATFORM)
-                dpg.add_text(default_value="               Acc     Dec")
-                for i in range(6, 12, 1):
-                    with dpg.group(horizontal=True):
-                        dpg.add_text(default_value=context.axis[i]['label'])
-                        context.editor_list.append(context.axis[i]['name'] + "Acc")
-                        dpg.add_input_text(label="", tag=context.axis[i]['name'] + "Acc", decimal=True,
-                                           default_value="0", width=50)
-                        context.editor_list.append(context.axis[i]['name'] + "Dec")
-                        dpg.add_input_text(label="", tag=context.axis[i]['name'] + "Dec", decimal=True,
-                                           default_value="0", width=50)
-                        dpg.add_button(label=txt.SET_BTN, height=22, width=100)
-                dpg.add_spacer(height=5)
-            with dpg.group():
-                dpg.add_text(default_value=txt.TABLE)
-                dpg.add_text(default_value="      Acc     Dec")
-                with dpg.group(horizontal=True):
-                    dpg.add_text(default_value=context.axis[12]['label'])
-                    context.editor_list.append(context.axis[12]['name'] + "Acc")
-                    dpg.add_input_text(label="", tag=context.axis[12]['name'] + "Acc", decimal=True, default_value="0",
-                                       width=50)
-                    context.editor_list.append(context.axis[12]['name'] + "Dec")
-                    dpg.add_input_text(label="", tag=context.axis[12]['name'] + "Dec", decimal=True, default_value="0",
-                                       width=50)
-                    dpg.add_button(label=txt.SET_BTN, height=22, width=100)
-                dpg.add_spacer(height=5)
 
     def btn_init_plaform_click(self, sender, app_data, user_data):
         context.gui_hlp.showMessage(txt.PLATFORM_INIT_MSG, txt.BREAK, DLG_CT_BREAK_PROC)
@@ -570,9 +567,14 @@ class MotionGUI:
         dpg.add_image('texture_z', pos=(89 + left_margin, 223 + top_margin))
 
         dpg.add_image('camera_1', pos=(left_margin, top_margin + 500))
-        dpg.add_text("", label="angle")
-        dpg.add_text("", label="length")
-        dpg.add_text("", label="coordinates")
+        dpg.add_button(label="rotate", pos=(left_margin + 400, top_margin + 500),
+                       callback=lambda: rotate_z(context, self.angle1 - self.angle2, False))
+        dpg.add_button(label="rotate", pos=(left_margin + 500, top_margin + 500),
+                       callback=lambda: rotate_z(context, self.angle2 - self.angle1, True))
+        dpg.add_button(label="move", pos=(left_margin + 400, top_margin + 550),
+                       callback=lambda: move_x(context, self.b1 - self.b2, False))
+        dpg.add_button(label="move", pos=(left_margin + 500, top_margin + 550),
+                       callback=lambda: move_x(context, self.b2 - self.b1, True))
         #dpg.add_image('camera_2', pos=(x_, 223 + top_margin))
         # dpg.add_button(label="Начать", pos=(x_, -23 + top_margin+201), callback=lambda sender, app_data: camera_connect(sender, app_data, 0))
         # stOutFrame = MV_FRAME_OUT()
