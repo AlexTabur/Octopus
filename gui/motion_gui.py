@@ -16,14 +16,17 @@ from core.utils import *
 context = Context()
 
 
-def append_to_lines(line_, lines_):
-    k = get_k(line_)
-    b = get_b(line_)
-    if len(lines_) == 0:
-        lines_.append(line_)
-    for i in lines_:
-        if abs(get_k(i) - k) > 0.01 and abs(get_b(i) - b) > 500:
-            lines_.append(line_)
+def append_to_lines(line_, lines_2_x, lines_2_y, lines_3_x, lines_3_y):
+    if line_[1] < 1000 and line_[3] < 1000:
+        lines_2_x.append(line_[0])
+        lines_2_y.append(line_[1])
+        lines_2_x.append(line_[2])
+        lines_2_y.append(line_[3])
+    else:
+        lines_3_x.append(line_[0])
+        lines_3_y.append(line_[1])
+        lines_3_x.append(line_[2])
+        lines_3_y.append(line_[3])
 
 
 class MotionGUI:
@@ -118,8 +121,10 @@ class MotionGUI:
                 self.lines_ = cv2.HoughLinesP(edges, self.rho, self.theta, self.threshold,
                                               minLineLength=self.minLineLength,
                                               maxLineGap=self.maxLineGap)
-            lines_2 = []
-            lines_3 = []
+            lines_2_x = []
+            lines_2_y = []
+            lines_3_x = []
+            lines_3_y = []
             str_ = ""
             if self.lines_ is not None:
                 if len(self.lines_) > 1:
@@ -134,15 +139,25 @@ class MotionGUI:
                             #          (0, 255, 0),
                             #          int(0.1 * self.val))
                             # str_ += f"{np.round(length(line[0]), 3)} {round(angle(line[0]), 3)} \n"
-                            append_to_lines(line[0], lines_2)
+                            append_to_lines(line[0], lines_2_x, lines_2_y, lines_3_x, lines_3_y)
+            if len(lines_2_x) > 0:
+                m1, b1 = np.polyfit(lines_2_x, lines_2_y, 1)
+                cv2.line(final, (0, int(get_y(0, m1, b1))),
+                         (int(self.n_w * self.val), int(get_y(int(self.n_w * self.val), m1, b1))),
+                         (0, 255, 0),
+                         int(0.1 * self.val))
+            if len(lines_3_x) > 0:
+                m, b = np.polyfit(lines_3_x, lines_3_y, 1)
+                cv2.line(final, (0, int(get_y(0, m, b))),
+                         (int(self.n_w * self.val), int(get_y(int(self.n_w * self.val), m, b))),
+                         (0, 255, 0),
+                         int(0.1 * self.val))
+            # for i in lines_2:
+            #     x1, y1, x2, y2 = i[0], i[1], i[2], i[3]
+            #     cv2.line(final, (x1, y1), (x2, y2), (255, 0, 255), int(0.3 * self.val))
 
-
-            for i in lines_2:
-                x1, y1, x2, y2 = i[0], i[1], i[2], i[3]
-                cv2.line(final, (x1, y1), (x2, y2), (255, 0, 255), int(0.3 * self.val))
-
-                cv2.line(final, (x1, y1), (x2, y2), (255, 0, 255), int(0.3 * self.val))
-            print("lines_2", len(lines_2))
+            #     cv2.line(final, (x1, y1), (x2, y2), (255, 0, 255), int(0.3 * self.val))
+            print("lines_2", len(lines_2_x)/2)
             # print("lines_3_len", len(lines_3))
             display_img("camera_1", cv2.resize(final, (400, 400)))
 
