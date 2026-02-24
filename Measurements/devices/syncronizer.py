@@ -1,29 +1,21 @@
-import os
-from copy import copy
 import struct
-import yaml
-import time
 
 from core.connections.com.com import Com
-from core.context import Context
 from core.exceptions import ConnectionError
-from core.utils import mW_to_dBm, dBm_to_mW, nm_to_ghz, ghz_to_nm
-from core.connections.com.com import Com
 
-cmd_ping  = 0x01
-cmd_sync  = 0x02
+cmd_ping = 0x01
+cmd_sync = 0x02
 
 
-class Syncronizer():
+class Syncronizer:
     connection = None
     status = 'init'
     dev_name = 'Syncronizer'
     dev_type = 'Sync'
     port_num = None
 
-
     def __init__(self):
-#        self.__helper = Helper()
+        # self.__helper = Helper()
         self.baudrate = 115200
         self.timeout = 2
         self.connection_type = 'com'
@@ -36,13 +28,13 @@ class Syncronizer():
     def set_baudrate(self, baudrate):
         self.baudrate = baudrate
 
-    def set_addr(self,port):
+    def set_addr(self, port):
         self.port_num = port
 
     def connect(self):
-        if self.port_num == None:
+        if self.port_num is None:
             return False
-        self.connection = Com(comport=self.port_num,timeout=self.timeout,baudrate=self.baudrate)
+        self.connection = Com(comport=self.port_num, timeout=self.timeout, baudrate=self.baudrate)
         if self.connection:
             self.connection.connect()
             return self.connection.connected
@@ -66,13 +58,12 @@ class Syncronizer():
             self.status = 'ready'
         self.state |= 0x01
 
-
     def make_sync(self, cnt, delay):
-#        if not self.connection or not self.connection.connected:
-#            raise ConnectionError(f'Device {self.dev_name} is not connected')
+        #        if not self.connection or not self.connection.connected:
+        #            raise ConnectionError(f'Device {self.dev_name} is not connected')
         # calculate frequency in THz
         try:
-            self.send_cmd(cmd_sync, (cnt>>8)&0xFF, cnt&0xFF, (delay>>8)&0xFF, delay&0xFF)
+            self.send_cmd(cmd_sync, (cnt >> 8) & 0xFF, cnt & 0xFF, (delay >> 8) & 0xFF, delay & 0xFF)
             ans = self.connection.read_len(1)
         except Exception as e:
             self.disconnect()
@@ -81,9 +72,9 @@ class Syncronizer():
         # put to regs
         try:
             self.status = 'processing'
-            bytes = struct.pack('!{0}B'.format(6), 0x55, cmd, param1, param2, param3, param4)
+            bytes_ = struct.pack('!{0}B'.format(6), 0x55, cmd, param1, param2, param3, param4)
 
-            self.connection.send(bytes)
+            self.connection.send(bytes_)
             self.status = 'ready'
 
         except Exception as e:
@@ -93,7 +84,7 @@ class Syncronizer():
         try:
             self.status = 'processing'
             ans = self.connection.read_len(4)
-            status = ans[0]==0x55
+            status = ans[0] == 0x55
             cmd = ans[1]
             param1 = ans[2]
             param2 = ans[3]
@@ -102,4 +93,3 @@ class Syncronizer():
 
         except Exception as e:
             self.disconnect()
-

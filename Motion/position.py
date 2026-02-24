@@ -1,16 +1,17 @@
-
 import dearpygui.dearpygui as dpg
-from core.context import Context
+
 from core.consts import *
-from threading import Timer
+from core.context import Context
 
 context = Context()
+
 
 class Positions:
     MSG_WIDTH = 240
     MSG_HEIGHT = 100
 
     """build cmd and convert to bytes with control sum"""
+
     def __init__(self):
         pass
 
@@ -21,7 +22,8 @@ class Positions:
             #                dpg.add_dynamic_texture(width=width, height=height, default_value=data, tag="texture_img")
             #            dpg.add_image("texture_img", pos=(5, 5))
             with dpg.group(horizontal=True):
-                dpg.add_checkbox(label='Управление с клавиатуры', callback=self.set_key_ctrl_callback, default_value=False)
+                dpg.add_checkbox(label='Управление с клавиатуры', callback=self.set_key_ctrl_callback,
+                                 default_value=False)
                 dpg.add_spacer(width=20)
                 dpg.add_checkbox(label='', callback=self.set_left_lock_callback, default_value=False)
                 dpg.add_image("texture_locking")
@@ -136,12 +138,13 @@ class Positions:
             context.lock_right_side = False
 
     def x_pos_to_um(self, pos):
-        return pos*NM_PER_STEP_X/1000
+        return pos * NM_PER_STEP_X / 1000
 
     def y_pos_to_um(self, pos):
-        return pos*NM_PER_STEP_Y/1000
+        return pos * NM_PER_STEP_Y / 1000
 
     def z_pos_to_um(self, pos):
-        return pos*NM_PER_STEP_Z/1000
+        return pos * NM_PER_STEP_Z / 1000
+
 
 context.positions = Positions()

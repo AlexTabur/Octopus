@@ -18,21 +18,21 @@ import core.texts as txt
 
 context = Context()
 
-load_prameters() # Загрузка параметров
+load_prameters()  # Загрузка параметров
 
-#arr = np.array([('Preset', np.zeros(13))], context.preset_dt)
-#for i in range(0, 10):
-#    context.preset_left  = np.append(context.preset_left,  arr)
-#    context.preset_right = np.append(context.preset_right, arr)
-#    context.preset_table = np.append(context.preset_table, arr)
-#    context.preset_all   = np.append(context.preset_all, arr)
-#save_presets()
+# arr = np.array([('Preset', np.zeros(13))], context.preset_dt)
+# for i in range(0, 10):
+#     context.preset_left  = np.append(context.preset_left,  arr)
+#     context.preset_right = np.append(context.preset_right, arr)
+#     context.preset_table = np.append(context.preset_table, arr)
+#     context.preset_all   = np.append(context.preset_all, arr)
+# save_presets()
 load_presets()
-#context.preset_left[7]['name'] = 'Пресет для бубубу'
-#print(context.preset_left)
-#print(context.preset_right)
-#print(context.preset_table)
-#print(context.preset_all)
+# context.preset_left[7]['name'] = 'Пресет для бубубу'
+# print(context.preset_left)
+# print(context.preset_right)
+# print(context.preset_table)
+# print(context.preset_all)
 
 dpg.create_context()
 dpg.configure_app(manual_callback_management=True)
@@ -57,13 +57,13 @@ with dpg.font_registry():
 
 context.gui_hlp.initThemes()
 
-#for i in chunked_list:
-#    barr = bytes(reversed(i))
-#    lennn = len(barr)
-#    if lennn==4:
-#        ff = struct.unpack('!f', barr)
-#        print(ff[0])
-###return bytes.decode(ans, "utf-8")
+# for i in chunked_list:
+#     barr = bytes(reversed(i))
+#     lennn = len(barr)
+#     if lennn==4:
+#         ff = struct.unpack('!f', barr)
+#         print(ff[0])
+# ##return bytes.decode(ans, "utf-8")
 
 
 with dpg.window(tag="main_window", no_resize=True):
@@ -88,12 +88,12 @@ with dpg.window(tag="main_window", no_resize=True):
 
     with dpg.item_handler_registry(tag="horiz_widget_handler1"):
         dpg.add_item_clicked_handler(button=0, callback=context.gui_hlp.plot_h_callback1)
-#    with dpg.item_handler_registry(tag="horiz_widget_handler2"):
-#        dpg.add_item_clicked_handler(button=0, callback=context.gui_hlp.plot_h_callback2)
+    #    with dpg.item_handler_registry(tag="horiz_widget_handler2"):
+    #        dpg.add_item_clicked_handler(button=0, callback=context.gui_hlp.plot_h_callback2)
     dpg.bind_item_handler_registry(context.gui_hlp.horiz_chart1, "horiz_widget_handler1")
-#    dpg.bind_item_handler_registry(context.gui_hlp.horiz_chart2, "horiz_widget_handler2")
+    #    dpg.bind_item_handler_registry(context.gui_hlp.horiz_chart2, "horiz_widget_handler2")
 
-    with dpg.table(header_row=False, resizable=False, policy=dpg.mvTable_SizingFixedFit):#, freeze_columns=9):
+    with dpg.table(header_row=False, resizable=False, policy=dpg.mvTable_SizingFixedFit):  # , freeze_columns=9):
         dpg.add_table_column()
         dpg.add_table_column()
         dpg.add_table_column()
@@ -115,23 +115,23 @@ with dpg.window(tag="main_window", no_resize=True):
                 dpg.add_spacer(width=10)
                 dpg.add_text(default_value=txt.PLATFORM_CTRL_TITLE)
             with dpg.table_cell():
-#                dpg.add_text(tag="platform_ctrl_state", default_value=txt.STATE_DISCONNECTED, color=[255, 0, 0])
+                #                dpg.add_text(tag="platform_ctrl_state", default_value=txt.STATE_DISCONNECTED, color=[255, 0, 0])
                 dpg.add_image("texture_dev_disc", tag="platform_ctrl_state")
             with dpg.table_cell():
                 dpg.add_button(label=txt.BTN_CONNECT, tag="platform_conn_btn", user_data=0,
                                callback=context.motionGUI.btn_connect_platform_callback, height=25, width=100)
             with dpg.table_cell():
                 dpg.add_spacer(width=10)
-                dpg.add_text(default_value=txt.METER_TITLE+'1')
+                dpg.add_text(default_value=txt.METER_TITLE + '1')
             with dpg.table_cell():
-#                dpg.add_text(tag="pm2100_ctrl_state", default_value=txt.STATE_DISCONNECTED, color=[255, 0, 0])
+                #                dpg.add_text(tag="pm2100_ctrl_state", default_value=txt.STATE_DISCONNECTED, color=[255, 0, 0])
                 dpg.add_image("texture_dev_disc", tag="pm2100_ctrl_state1")
             with dpg.table_cell():
                 dpg.add_button(label=txt.BTN_CONNECT, tag="pm2100_conn_btn1", user_data=0,
                                callback=context.config_ctrl.connect_pm2100_device1, height=25, width=100)
             with dpg.table_cell():
                 dpg.add_spacer(width=10)
-                dpg.add_text(default_value=txt.METER_TITLE+'2')
+                dpg.add_text(default_value=txt.METER_TITLE + '2')
             with dpg.table_cell():
                 #                dpg.add_text(tag="pm2100_ctrl_state", default_value=txt.STATE_DISCONNECTED, color=[255, 0, 0])
                 dpg.add_image("texture_dev_disc", tag="pm2100_ctrl_state2")
@@ -140,7 +140,7 @@ with dpg.window(tag="main_window", no_resize=True):
                                callback=context.config_ctrl.connect_pm2100_device2, height=25, width=100)
             with dpg.table_cell():
                 dpg.add_spacer(width=10)
-                dpg.add_text(default_value=txt.METER_TITLE+'3')
+                dpg.add_text(default_value=txt.METER_TITLE + '3')
             with dpg.table_cell():
                 #                dpg.add_text(tag="pm2100_ctrl_state", default_value=txt.STATE_DISCONNECTED, color=[255, 0, 0])
                 dpg.add_image("texture_dev_disc", tag="pm2100_ctrl_state3")
@@ -150,17 +150,17 @@ with dpg.window(tag="main_window", no_resize=True):
             with dpg.table_cell():
                 pass
         with dpg.table_row():
-# УПРАВЛЕНИЕ СТОЛОМ
+            # УПРАВЛЕНИЕ СТОЛОМ
             with dpg.table_cell():
                 dpg.add_text(default_value=txt.TABLE_CTRL_TITLE)
             with dpg.table_cell():
-#                dpg.add_text(tag="table_ctrl_state", default_value=txt.STATE_DISCONNECTED, color=[255, 0, 0])
+                #                dpg.add_text(tag="table_ctrl_state", default_value=txt.STATE_DISCONNECTED, color=[255, 0, 0])
                 dpg.add_image("texture_dev_disc", tag="table_ctrl_state")
             with dpg.table_cell():
                 dpg.add_button(label=txt.BTN_CONNECT, tag="table_conn_btn", user_data=0,
                                callback=context.motionGUI.btn_connect_table_callback, height=25, width=100)
 
-# УПРАВЛЕНИЕ ЛАЗЕРОМ GoLight
+            # УПРАВЛЕНИЕ ЛАЗЕРОМ GoLight
             with dpg.table_cell():
                 dpg.add_text(default_value=txt.LASER_GOLIGHT_TITLE)
             with dpg.table_cell():
@@ -168,7 +168,7 @@ with dpg.window(tag="main_window", no_resize=True):
             with dpg.table_cell():
                 dpg.add_button(label=txt.BTN_CONNECT, tag="laser_golight_conn_btn", user_data=0,
                                callback=context.config_ctrl.connect_laser_golight_device, height=25, width=100)
-# УПРАВЛЕНИЕ СИНХРОНИЗАТОРОМ
+            # УПРАВЛЕНИЕ СИНХРОНИЗАТОРОМ
             with dpg.table_cell():
                 dpg.add_text(default_value=txt.SYNCRONIZER_TITLE)
             with dpg.table_cell():
@@ -177,7 +177,7 @@ with dpg.window(tag="main_window", no_resize=True):
                 dpg.add_button(label=txt.BTN_CONNECT, tag="syncronizer_conn_btn", user_data=0,
                                callback=context.config_ctrl.connect_syncronizer_device, height=25, width=100)
 
-# пустая ячейка
+            # пустая ячейка
             with dpg.table_cell():
                 dpg.add_text(default_value="  ")
             with dpg.table_cell():
@@ -191,8 +191,8 @@ with dpg.window(tag="main_window", no_resize=True):
         with dpg.tab(label=txt.TS_MANUAL_TITLE, id=TAB_MANUAL_ID):
             context.motionGUI.init_manual_page()
 
-#        with dpg.tab(label=txt.TS2_TITLE):
-#            motionGUI.init_setting_page()
+        #        with dpg.tab(label=txt.TS2_TITLE):
+        #            motionGUI.init_setting_page()
 
         with dpg.tab(label=txt.TS_PRESETS_TITLE, id=TAB_PRESETS_ID):
             context.motionGUI.init_preset_page()
@@ -210,16 +210,15 @@ with dpg.window(tag="main_window", no_resize=True):
             context.config_ctrl.init_config_page()
 
     log_window = dpg.add_child_window(autosize_x=True, autosize_y=True)
-    context.logger = Logger(parent=log_window)#, w_width=context.main_width-15, w_heigth=100, w_x=0, w_y=context.main_height-140)
+    context.logger = Logger(parent=log_window)  # , w_width=context.main_width-15, w_heigth=100, w_x=0, w_y=context.main_height-140)
 
-#dpg.show_style_editor()
-
+# dpg.show_style_editor()
 dpg.create_viewport(title=txt.MAIN_TITLE, width=context.main_width, height=context.main_height)
 dpg.setup_dearpygui()
 dpg.show_viewport()
 dpg.set_primary_window("main_window", True)
 
-#dpg.start_dearpygui()
+# dpg.start_dearpygui()
 while dpg.is_dearpygui_running():
     context.motionGUI.loop()
     context.config_ctrl.loop()
@@ -227,11 +226,11 @@ while dpg.is_dearpygui_running():
     context.meas_powermap.powermap_loop()
     if context.call_count != -1:
         context.call_count -= 1
-        if context.call_count==0:
+        if context.call_count == 0:
             context.call_count = -1
             context.call_function(*context.function_params)
 
-    jobs = dpg.get_callback_queue() # retrieves and clears queue
+    jobs = dpg.get_callback_queue()  # retrieves and clears queue
     dpg.run_callbacks(jobs)
     dpg.render_dearpygui_frame()
 

@@ -1,6 +1,7 @@
 import dearpygui.dearpygui as dpg
 
-filt_items  = ["COMMON", "COMMUNICATION", "WARNING", "ERROR", "CRITICAL"]
+filt_items = ["COMMON", "COMMUNICATION", "WARNING", "ERROR", "CRITICAL"]
+
 
 class Logger:
 
@@ -24,19 +25,25 @@ class Logger:
                                      callback=lambda sender: self.auto_scroll(dpg.get_value(sender)))
                 dpg.add_spacer(height=5)
                 with dpg.group():
-                    dpg.add_checkbox(label=filt_items[0], callback=self.set_filter_callback, user_data=0x01, default_value = True)
-                    dpg.add_checkbox(label=filt_items[1], callback=self.set_filter_callback, user_data=0x02, default_value = True)
-                    dpg.add_checkbox(label=filt_items[2], callback=self.set_filter_callback, user_data=0x04, default_value = True)
-                    dpg.add_checkbox(label=filt_items[3], callback=self.set_filter_callback, user_data=0x08, default_value = True)
-                    dpg.add_checkbox(label=filt_items[4], callback=self.set_filter_callback, user_data=0x10, default_value=True)
+                    dpg.add_checkbox(label=filt_items[0], callback=self.set_filter_callback, user_data=0x01,
+                                     default_value=True)
+                    dpg.add_checkbox(label=filt_items[1], callback=self.set_filter_callback, user_data=0x02,
+                                     default_value=True)
+                    dpg.add_checkbox(label=filt_items[2], callback=self.set_filter_callback, user_data=0x04,
+                                     default_value=True)
+                    dpg.add_checkbox(label=filt_items[3], callback=self.set_filter_callback, user_data=0x08,
+                                     default_value=True)
+                    dpg.add_checkbox(label=filt_items[4], callback=self.set_filter_callback, user_data=0x10,
+                                     default_value=True)
                 dpg.add_spacer(height=5)
-                dpg.add_button(label="Clear", width=200, height=30, callback=lambda: dpg.delete_item(self.filter_id, children_only=True))
+                dpg.add_button(label="Clear", width=200, height=30,
+                               callback=lambda: dpg.delete_item(self.filter_id, children_only=True))
 
             self.child_id = dpg.add_child_window(autosize_x=True, autosize_y=True)
             self.filter_id = dpg.add_filter_set(parent=self.child_id, )
             flt = "[TRACE]"
             for f in filt_items:
-                flt += ',['+f+']'
+                flt += ',[' + f + ']'
             dpg.set_value(self.filter_id, flt)
 
             with dpg.theme() as self.trace_theme:
@@ -78,23 +85,23 @@ class Logger:
 
         theme = self.info_theme
 
-        if level ==   0:
-            message = "[TRACE]\t\t" + message # COMMON
+        if level == 0:
+            message = "[TRACE]\t\t" + message  # COMMON
             theme = self.trace_theme
-        elif level ==   0x01:
-            message = f"[{filt_items[0]}]\t\t" + message # COMMON
+        elif level == 0x01:
+            message = f"[{filt_items[0]}]\t\t" + message  # COMMON
             theme = self.warning_theme
-        elif level ==   0x02:
-            message = f"[{filt_items[1]}]\t\t" + message # WARNING
+        elif level == 0x02:
+            message = f"[{filt_items[1]}]\t\t" + message  # WARNING
             theme = self.warning_theme
         elif level == 0x04:
             message = f"[{filt_items[2]}]\t\t" + message  # WARNING
             theme = self.warning_theme
         elif level == 0x08:
-            message = f"[{filt_items[3]}]\t\t" + message # ERROR
+            message = f"[{filt_items[3]}]\t\t" + message  # ERROR
             theme = self.error_theme
         elif level == 0x10:
-            message = f"[{filt_items[4]}]\t\t" + message # CRITICAL
+            message = f"[{filt_items[4]}]\t\t" + message  # CRITICAL
             theme = self.critical_theme
 
         new_log = dpg.add_text(message, parent=self.filter_id, filter_key=message)
@@ -133,6 +140,6 @@ class Logger:
         flt = "[TRACE]"
         for idx, fstr in enumerate(filt_items):
             if self.filter & (1 << idx):
-                flt += ",["+fstr+"]"
+                flt += ",[" + fstr + "]"
         dpg.set_value(self.filter_id, flt)
-        ##self.log_level
+        # self.log_level
