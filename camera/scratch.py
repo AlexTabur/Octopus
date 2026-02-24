@@ -5,6 +5,8 @@ import dearpygui.dearpygui as dpg
 
 def get_k(line):
     x1, y1, x2, y2 = line[0], line[1], line[2], line[3]
+    if x2-x1 == 0:
+        return 1000
     return (y2 - y1) / (x2 - x1)
 
 
@@ -62,42 +64,7 @@ def Mono_numpy(data, nWidth, nHeight):
     return bytes_as_np_array
 
 
-def rotate_z(context, angle1, right):
-    if right:
-        axis = context.axis[context.z2_ang_i]['idx']
-    else:
-        axis = context.axis[context.z1_ang_i]['idx']
 
-    # context.logger.log_warning(str(axis) + " " + str(dir))
-    # return
-
-    if axis != -1:
-        context.current_axis = axis
-        if context.zplatform.is_connected:
-            # print("moving on axis = ", abs(context.current_axis))
-            steps_per_degree = 2360
-            print(angle1)
-            context.zplatform.move(axis, steps_per_degree*angle1)
-            # print(self.angle1, self.angle2, self.angle1 - self.angle2)
-        else:
-            print("not connected")
-
-
-def move_x(context, delta, right, obj):
-    if right:
-        axis = context.axis[context.x2_line_i]['idx']
-    else:
-        axis = context.axis[context.x1_line_i]['idx']
-    if axis != -1:
-        context.current_axis = axis
-        if context.zplatform.is_connected:
-            # print("moving on axis = ", abs(context.current_axis))
-
-            print(delta)
-            # 32.961405521725055
-            context.zplatform.move(axis, delta * 1600/38)
-        else:
-            print("not connected")
     # context.zcontrollers.move_axis(int(context.axis[context.z2_line_i]['dir_fw']),
     #                                 context.axis[context.z2_line_i]['idx'])
 # k, b = 2, 3

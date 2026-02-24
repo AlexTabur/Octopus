@@ -1,7 +1,6 @@
 import threading
 from threading import Timer
 
-import cv2
 from pynput import keyboard
 from win32gui import GetWindowText, GetForegroundWindow
 
@@ -9,24 +8,11 @@ import axis_ctrl
 from camera.CameraParams_header import *
 from camera.MvCameraControl_class import *
 from camera.MvErrorDefine_const import *
-from camera.scratch import get_k, get_y, resize_image, Mono_numpy, display_img, rotate_z, move_x
+from camera.scratch import get_k, get_y, resize_image, Mono_numpy, display_img
 from core.gui_helper import *
 from core.utils import *
 
 context = Context()
-
-
-def append_to_lines(line_, lines_2_x, lines_2_y, lines_3_x, lines_3_y, a):
-    if line_[1] < a.n_w*0.5*a.val/100 and line_[3] < a.n_w*0.5*a.val/100:
-        lines_2_x.append(line_[0])
-        lines_2_y.append(line_[1])
-        lines_2_x.append(line_[2])
-        lines_2_y.append(line_[3])
-    else:
-        lines_3_x.append(line_[0])
-        lines_3_y.append(line_[1])
-        lines_3_x.append(line_[2])
-        lines_3_y.append(line_[3])
 
 
 def init_setting_page():
@@ -78,6 +64,9 @@ def init_setting_page():
 class MotionGUI:
 
     def __init__(self):
+        self.mask = None
+        self.k1 = None
+        self.k2 = None
         self.b1 = None
         self.b2 = None
         self.fixed = False
@@ -132,16 +121,17 @@ class MotionGUI:
             return
         self.NeedBufSize = int(stPayloadSize.nCurValue)
         self.val = 40
-        self.val2 = 10 * 2 + 1
-        self.threshold1 = 200
+        self.val2 = 7
+        self.threshold1 = 50
         self.threshold2 = 255
         self.rho = 1  # ui.rho.value()
         self.theta = np.pi / 180 / 10  # ui.theta.value()
         self.threshold = 200
         self.n_w, self.n_h = 5120, 5120
-        self.minLineLength = 0 / 100 * self.n_w * self.val / 100
+        self.minLineLength = 0.6 / 100 * self.n_w * self.val / 100
         self.maxLineGap = 100 / 100 * self.n_w * self.val / 100
-        self.c_x, self.c_y = int(self.n_w/2), int(self.n_w/2)
+        self.c_x, self.c_y = int(self.n_w * self.val / 100 / 2), int(self.n_w * self.val / 100 / 2)
+        self.mask = cv2.circle(np.zeros((2048, 2048), dtype="uint8"), (self.c_x, self.c_y), self.c_x-300, 255, -1)
         self.last_photo_taken = time.time()
         if self.buf_grab_image_size < self.NeedBufSize:
             self.buf_grab_image = (self.NeedBufSize * ctypes.c_ubyte)()
@@ -154,20 +144,56 @@ class MotionGUI:
         #            255, -1)
         # self.obj_cam.MV_CC_GetOneFrameTimeout(self.buf_grab_image, self.buf_grab_image_size, self.stFrameInfo)
 
+    def rotate_z(self, right):
+        if right:
+            axis = context.axis[context.z2_ang_i]['idx']
+        else:
+            axis = context.axis[context.z1_ang_i]['idx']
+        angle1 = self.angle2 - self.angle1
+        # context.logger.log_warning(str(axis) + " " + str(dir))
+        # return
+
+        if axis != -1:
+            context.current_axis = axis
+            if context.zplatform.is_connected:
+                # print("moving on axis = ", abs(context.current_axis))
+                steps_per_degree = 2360
+                print(angle1)
+                context.zplatform.move(axis, steps_per_degree * angle1)
+                # print(self.angle1, self.angle2, self.angle1 - self.angle2)
+            else:
+                print("not connected")
+
+    def move_x(self, right):
+        delta = (self.b2 - self.b1) / np.sqrt(self.k1 ** 2 + 1)
+        if right:
+            axis = context.axis[context.x2_line_i]['idx']
+        else:
+            axis = context.axis[context.x1_line_i]['idx']
+        if axis != -1:
+            context.current_axis = axis
+            if context.zplatform.is_connected:
+                # print("moving on axis = ", abs(context.current_axis))
+
+                print(delta)
+                # 32.961405521725055
+                context.zplatform.move(axis, delta * 1600 / 35 - 8 * 100)
+            else:
+                print("not connected")
     def run_task(self):
         while True:
             # Camera
-            if time.time() - self.last_photo_taken > 0.5:
+            if time.time() - self.last_photo_taken > 0.3:
                 self.obj_cam.MV_CC_GetOneFrameTimeout(self.buf_grab_image, self.buf_grab_image_size, self.stFrameInfo)
                 self.last_photo_taken = time.time()
 
                 resized = resize_image(Mono_numpy(self.buf_grab_image, self.n_w, self.n_h), self.val)
                 resized = cv2.transpose(cv2.flip(resized, flipCode=1))
-                cv2.normalize(resized, resized, 255.0, 0.0, norm_type=cv2.NORM_MINMAX)
-                resized = cv2.medianBlur(resized, 7)
+                cv2.normalize(resized, resized, 0.0, 255.0, norm_type=cv2.NORM_MINMAX)
+                resized = cv2.medianBlur(resized, self.val2)
                 # resized = cv2.Sobel(resized, cv2.CV_8U, 0, 1)
-                edges = cv2.Canny(resized, self.threshold1, self.threshold2)
-                # edges &= self.mask
+                edges = cv2.Canny(resized, self.threshold1, self.threshold2, apertureSize=3, L2gradient=True)
+                edges &= self.mask
 
                 final = cv2.cvtColor(resized, cv2.COLOR_GRAY2RGB)
                 if not self.fixed:
@@ -183,7 +209,17 @@ class MotionGUI:
                         for line in self.lines_:
                             k = get_k(line[0])
                             if abs(k) < 1:
-                                append_to_lines(line[0], lines_2_x, lines_2_y, lines_3_x, lines_3_y, self)
+                                line_ = line[0]
+                                if line_[1] < self.n_w * 0.5 * self.val / 100 and line_[3] < self.n_w * 0.5 * self.val / 100:
+                                    lines_2_x.append(line_[0])
+                                    lines_2_y.append(line_[1])
+                                    lines_2_x.append(line_[2])
+                                    lines_2_y.append(line_[3])
+                                else:
+                                    lines_3_x.append(line_[0])
+                                    lines_3_y.append(line_[1])
+                                    lines_3_x.append(line_[2])
+                                    lines_3_y.append(line_[3])
 
                 if len(lines_2_x) > 0:
                     m, b = np.polyfit(lines_2_x, lines_2_y, 1)
@@ -204,7 +240,9 @@ class MotionGUI:
                     self.b2 = b
                     self.k2 = m
 
-                display_img("camera_1", cv2.resize(cv2.flip(cv2.cvtColor(cv2.transpose(edges), cv2.COLOR_GRAY2RGB), flipCode=1), (400, 400)))
+                display_img("camera_1",
+                            cv2.resize(cv2.flip(cv2.cvtColor(cv2.transpose(edges), cv2.COLOR_GRAY2RGB), flipCode=1),
+                                       (400, 400)))
                 display_img("camera_2", cv2.resize(cv2.flip(cv2.transpose(final), flipCode=1), (400, 400)))
                 # cv2.imshow("img", edges)
 
@@ -572,27 +610,23 @@ class MotionGUI:
         dpg.add_image('texture_z', pos=(89 + left_margin, 223 + top_margin))
 
         dpg.add_image('camera_1', pos=(left_margin, top_margin + 500))
-        dpg.add_image('camera_2', pos=(left_margin+600, top_margin + 500))
+        dpg.add_image('camera_2', pos=(left_margin + 600, top_margin + 500))
         dpg.add_button(label="rotate", pos=(left_margin + 400, top_margin + 500),
-                       callback=lambda: rotate_z(context, self.angle2 - self.angle1, False))
+                       callback=lambda: self.rotate_z(False))
         dpg.add_button(label="rotate", pos=(left_margin + 500, top_margin + 500),
-                       callback=lambda: rotate_z(context, self.angle2 - self.angle1, True))
+                       callback=lambda: self.rotate_z(True))
         dpg.add_button(label="move", pos=(left_margin + 400, top_margin + 550),
-                       callback=lambda: move_x(context, (self.b2 - self.b1)/np.sqrt(self.k1**2+1), False, self))
+                       callback=lambda: self.move_x(False))
         dpg.add_button(label="move", pos=(left_margin + 500, top_margin + 550),
-                       callback=lambda: move_x(context, (self.b2 - self.b1)/np.sqrt(self.k1**2+1), True, self))
-        #dpg.add_image('camera_2', pos=(x_, 223 + top_margin))
+                       callback=lambda: self.move_x(True))
+        # dpg.add_image('camera_2', pos=(x_, 223 + top_margin))
         # dpg.add_button(label="Начать", pos=(x_, -23 + top_margin+201), callback=lambda sender, app_data: camera_connect(sender, app_data, 0))
         # stOutFrame = MV_FRAME_OUT()
-        stFrameInfo = MV_FRAME_OUT_INFO_EX()
-        img_buff = None
-        numArray = None
 
         stPayloadSize = MVCC_INTVALUE_EX()
         ret_temp = self.obj_cam.MV_CC_GetIntValueEx("PayloadSize", stPayloadSize)
         if ret_temp != MV_OK:
             return
-        NeedBufSize = int(stPayloadSize.nCurValue)
         # dpg.add_button(label="Подключить", pos=(x_, 223 + top_margin+201), callback=lambda sender, app_data: camera_connect(sender, app_data, 0))
         # LEFT PLATFORM BUTTONS
         dpg.add_image_button(context.axis[0]['txt_p'], pos=(494 + left_margin, 223 + top_margin),
@@ -782,7 +816,7 @@ class MotionGUI:
                     with dpg.table_row(height=40):
                         with dpg.table_cell():
                             dpg.add_text(tag=comm_name + str(i),
-                                         default_value=f"{preset_arr[i]['name'] : >15}")
+                                         default_value=f"{preset_arr[i]['name']} : > 15")
                         with dpg.table_cell():
                             dpg.add_button(label=txt.SET_PRESET_BTN, height=20, width=100,
                                            callback=self.btn_store_as_preset,
@@ -848,9 +882,9 @@ class MotionGUI:
         pic_width, pic_height, pic_channels, pic_data = dpg.load_image("Pics//chan_pos_right.png")
         dpg.add_dynamic_texture(width=pic_width, height=pic_height, default_value=pic_data, tag="chan_pos_right")
 
-        dpg.add_raw_texture(width=400, height=400, default_value=np.zeros((400, 400, 3), dtype=np.float32),
+        dpg.add_raw_texture(width=400, height=400, default_value=[0.0]*400*400*3,
                             tag="camera_1", format=dpg.mvFormat_Float_rgb)
-        dpg.add_raw_texture(width=400, height=400, default_value=np.zeros((400, 400, 3), dtype=np.float32),
+        dpg.add_raw_texture(width=400, height=400, default_value=[0.0]*400*400*3,
                             tag="camera_2", format=dpg.mvFormat_Float_rgb)
 
         # dpg.add_raw_texture(width=400, height=400, default_value=np.zeros((400,400,3), dtype=np.float32), tag="camera_2", format=dpg.mvFormat_Float_rgb)
