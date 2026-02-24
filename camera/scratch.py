@@ -26,7 +26,10 @@ def length(line):
 def angle(line):
     dx = line[2] - line[0]
     dy = line[3] - line[1]
-    a = np.angle(dx + 1j * dy) * 180 / np.pi
+    a = np.angle(dx + 1j * dy)
+    if a < 0:
+        a += np.pi
+    a *= 180 / np.pi
 
     return -a
 
@@ -45,7 +48,7 @@ def display_img(label, img):
     dpg.set_value(label, data)
 
 
-def Mono_numpy(data, nWidth, nHeight):
+def Mono_numpy_old(data, nWidth, nHeight):
     data_ = np.frombuffer(data, count=int(nWidth * nHeight), dtype=np.uint8, offset=0)
     data_mono_arr = data_.reshape(nHeight, nWidth)
     numArray = np.zeros([nHeight, nWidth, 1], "uint8")
@@ -53,6 +56,12 @@ def Mono_numpy(data, nWidth, nHeight):
     return numArray
 
 
-k, b = 2, 3
-line_a = [0.1, get_y(0.1, k, 3), 5, get_y(5, 2, 3)]
-print(get_b(line_a))
+def Mono_numpy(data, nWidth, nHeight):
+    bytes_as_np_array = np.frombuffer(data, count=int(nWidth * nHeight), dtype=np.uint8).reshape((nWidth, nHeight))
+
+    return bytes_as_np_array
+
+
+# k, b = 2, 3
+# line_a = [0.1, get_y(0.1, k, 3), 5, get_y(5, 2, 3)]
+# print(get_b(line_a))

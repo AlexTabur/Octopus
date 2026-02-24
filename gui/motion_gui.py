@@ -1,17 +1,29 @@
 import threading
 from threading import Timer
+
+import cv2
 from pynput import keyboard
 from win32gui import GetWindowText, GetForegroundWindow
-
+import time
 import axis_ctrl
 from camera.CameraParams_header import *
 from camera.MvCameraControl_class import *
 from camera.MvErrorDefine_const import *
-from camera.scratch import get_k, get_b, get_y, resize_image, Mono_numpy, length, display_img
+from camera.scratch import get_k, get_b, get_y, angle, resize_image, Mono_numpy, length, display_img
 from core.gui_helper import *
 from core.utils import *
 
 context = Context()
+
+
+def append_to_lines(line_, lines_):
+    k = get_k(line_)
+    b = get_b(line_)
+    if len(lines_) == 0:
+        lines_.append(line_)
+    for i in lines_:
+        if abs(get_k(i) - k) > 0.01 and abs(get_b(i) - b) > 500:
+            lines_.append(line_)
 
 
 class MotionGUI:
@@ -66,6 +78,73 @@ class MotionGUI:
         if ret_temp != MV_OK:
             return
         self.NeedBufSize = int(stPayloadSize.nCurValue)
+        self.val = 40
+        self.val2 = 10 * 2 + 1
+        self.threshold1 = 240
+        self.threshold2 = 255
+        self.rho = 1  # ui.rho.value()
+        self.theta = np.pi / 180 / 10  # ui.theta.value()
+        self.threshold = 300
+        self.n_w, self.n_h = 5120, 5120
+        self.minLineLength = 5 / 100 * self.n_w * self.val / 100
+        self.maxLineGap = 3 / 100 * self.n_w * self.val / 100
+        self.c_x, self.c_y = 2600, 2600
+        self.last_photo_taken = time.time()
+        if self.buf_grab_image_size < self.NeedBufSize:
+            self.buf_grab_image = (self.NeedBufSize * ctypes.c_ubyte)()
+            self.buf_grab_image_size = self.NeedBufSize
+        thread = threading.Thread(target=self.run_task, args=(), daemon=True)
+        thread.start()
+        # self.mask = np.zeros((int(self.n_w * self.val / 100), int(self.n_w * self.val / 100)), dtype="uint8")
+        # cv2.circle(self.mask, (int(self.c_x * self.val / 100), int(self.c_y * self.val / 100)),
+        #            int(self.c_y * self.val / 100),
+        #            255, -1)
+        # self.obj_cam.MV_CC_GetOneFrameTimeout(self.buf_grab_image, self.buf_grab_image_size, self.stFrameInfo)
+
+    def run_task(self):
+        while True:
+            # Camera
+            if time.time() - self.last_photo_taken > 0.5:
+                self.obj_cam.MV_CC_GetOneFrameTimeout(self.buf_grab_image, self.buf_grab_image_size, self.stFrameInfo)
+                self.last_photo_taken = time.time()
+
+            resized = resize_image(Mono_numpy(self.buf_grab_image, self.n_w, self.n_h), self.val)
+            resized = cv2.transpose(cv2.flip(resized, flipCode=1))
+            edges = cv2.Canny(resized, self.threshold1, self.threshold2)
+            # edges &= self.mask
+
+            final = cv2.cvtColor(resized, cv2.COLOR_GRAY2RGB)
+            if not self.fixed:
+                self.lines_ = cv2.HoughLinesP(edges, self.rho, self.theta, self.threshold,
+                                              minLineLength=self.minLineLength,
+                                              maxLineGap=self.maxLineGap)
+            lines_2 = []
+            lines_3 = []
+            str_ = ""
+            if self.lines_ is not None:
+                if len(self.lines_) > 1:
+                    for line in self.lines_:
+                        x1, y1, x2, y2 = line[0]
+
+                        k = get_k(line[0])
+                        b = get_b(line[0])
+                        if abs(k) < 1:
+                            # cv2.line(final, (0, int(get_y(0, k, b))),
+                            #          (int(self.n_w * self.val), int(get_y(int(self.n_w * self.val), k, b))),
+                            #          (0, 255, 0),
+                            #          int(0.1 * self.val))
+                            # str_ += f"{np.round(length(line[0]), 3)} {round(angle(line[0]), 3)} \n"
+                            append_to_lines(line[0], lines_2)
+
+
+            for i in lines_2:
+                x1, y1, x2, y2 = i[0], i[1], i[2], i[3]
+                cv2.line(final, (x1, y1), (x2, y2), (255, 0, 255), int(0.3 * self.val))
+
+                cv2.line(final, (x1, y1), (x2, y2), (255, 0, 255), int(0.3 * self.val))
+            print("lines_2", len(lines_2))
+            # print("lines_3_len", len(lines_3))
+            display_img("camera_1", cv2.resize(final, (400, 400)))
 
     def loop(self):
         if context.zplatform.state_changed & 1:
@@ -91,68 +170,6 @@ class MotionGUI:
             else:
                 context.gui_hlp.set_conn_states("table_ctrl_state", "table_conn_btn", 0)
                 context.logger.log_com("Контроллер стола отключен")
-
-        # CAmera
-        if self.buf_grab_image_size < self.NeedBufSize:
-            self.buf_grab_image = (ctypes.c_ubyte * self.NeedBufSize)()
-            self.buf_grab_image_size = self.NeedBufSize
-
-        self.obj_cam.MV_CC_GetOneFrameTimeout(self.buf_grab_image, self.buf_grab_image_size, self.stFrameInfo)
-
-        c_x, c_y = 2600, 2600
-        a = self.buf_grab_image
-        n_w, n_h = self.stFrameInfo.nWidth, self.stFrameInfo.nHeight
-        gray = Mono_numpy(a, n_w, n_h)
-        val = 40
-        val2 = 10 * 2 + 1
-        threshold1 = 240
-        threshold2 = 255
-        rho = 1  # ui.rho.value()
-        theta = np.pi / 180 / 10  # ui.theta.value()
-        threshold = 200
-        minLineLength = 5 / 100 * n_w * val / 100
-        maxLineGap = 3 / 100 * n_w * val / 100
-        resized = resize_image(gray, val)
-
-        min_, max_ = np.min(resized), np.max(resized)
-        l = max_ - min_
-        resized = np.astype((resized - min_) / l * 255, np.uint8)
-        resized = cv2.medianBlur(resized, 5)
-        img1 = np.astype((127 + 127 * np.cos(resized * np.pi / 255)), np.uint8)
-        img1 = cv2.GaussianBlur(img1, (val2, val2), 2)
-        # img1 = resized
-        edges = cv2.Canny(img1, threshold1, threshold2, 0)
-        mask = np.zeros(edges.shape[:2], dtype="uint8")
-        cv2.circle(mask, (int(c_x * val / 100), int(c_y * val / 100)), int(2100 * val / 100), (255), -1)
-        edges = cv2.bitwise_and(edges, edges, mask=mask)
-
-        final = cv2.cvtColor(cv2.bitwise_and(img1, img1, mask=mask), cv2.COLOR_GRAY2RGB)
-        if not self.fixed:
-            self.lines_ = cv2.HoughLinesP(edges, rho, theta, threshold, minLineLength=minLineLength,
-                                          maxLineGap=maxLineGap)
-        str_ = ""
-
-        if self.lines_ is not None:
-            if len(self.lines_) > 1:
-                for line in self.lines_:
-                    x1, y1, x2, y2 = line[0]
-                    b = get_b(line[0])
-                    if x2 - x1 != 0:
-                        k = get_k(line[0])
-                        if abs(k) > 1:
-                            cv2.line(final, (x1, y1), (x2, y2), (255, 0, 255), int(0.3 * val))
-                            cv2.line(final, (0, int(get_y(0, k, b))),
-                                     (int(n_w * val), int(get_y(int(n_w * val), k, b))), (0, 255, 0),
-                                     int(0.1 * val))
-                            # str_ += f"{np.round(length(line[0]), 3)} {round(angle(line[0]), 3)} \n"
-                    else:
-                        cv2.line(final, (x1, y1), (x2, y2), (255, 0, 255), int(0.3 * val))
-                        cv2.line(final, (x1, 0), (x2, int(n_w * val)), (0, 255, 0),
-                                 int(0.1 * val))
-                        str_ += f"{np.round(length(line[0]), 3)} {90} \n"
-                        print("yay2", str_)
-
-        display_img("camera_1", cv2.resize(final, (400, 400)))
 
     # display_img("camera_1", cv2.resize(cv2.cvtColor(edges, cv2.COLOR_GRAY2RGB), (400, 400)))
 
@@ -537,8 +554,10 @@ class MotionGUI:
         dpg.add_image('texture_xy', pos=(400 + left_margin, 223 + top_margin))
         dpg.add_image('texture_z', pos=(89 + left_margin, 223 + top_margin))
 
-        x_ = 1300 + left_margin
-        dpg.add_image('camera_1', pos=(x_, -23 + top_margin))
+        dpg.add_image('camera_1', pos=(left_margin, top_margin + 500))
+        dpg.add_text("", label="angle")
+        dpg.add_text("", label="length")
+        dpg.add_text("", label="coordinates")
         #dpg.add_image('camera_2', pos=(x_, 223 + top_margin))
         # dpg.add_button(label="Начать", pos=(x_, -23 + top_margin+201), callback=lambda sender, app_data: camera_connect(sender, app_data, 0))
         # stOutFrame = MV_FRAME_OUT()

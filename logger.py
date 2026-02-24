@@ -10,10 +10,10 @@ class Logger:
         self.filter = 0xf
         self._auto_scroll = True
         self.filter_id = None
-        if parent:
-            self.window_id = parent
-        else:
-            self.window_id = dpg.add_window(label="Log", pos=(w_x, w_y), width=w_width, height=w_heigth,
+        # if parent:
+        #     self.window_id = parent
+        # else:
+        self.window_id = dpg.add_window(label="Log", pos=(w_x, w_y), width=w_width, height=w_heigth,
                                             no_close=True, no_collapse=True, autosize=True)
         self.count = 0
         self.flush_count = 1000
