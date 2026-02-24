@@ -5,7 +5,7 @@ import ctypes
 systype = platform.system()
 if systype == 'Windows':
     if platform.architecture()[0] == '64bit':
-#        zauxdll = ctypes.WinDLL('Libs//zmotion64.dll')
+        #        zauxdll = ctypes.WinDLL('Libs//zmotion64.dll')
         zauxdll = ctypes.WinDLL('Libs//zauxdll.dll')
         print('Windows x64')
     else:
@@ -20,6 +20,7 @@ elif systype == 'Linux':
 else:
     print("OS Not Supported!!")
 
+
 class ZMCWrapper:
     # Инициализация параметров
     def __init__(self):
@@ -30,25 +31,25 @@ class ZMCWrapper:
         self.state_changed = 0
 
     # Поискадресов
-#    def search(self, ip, console=[]):
-        #ip_val = ctypes.create_string_buffer(b'', 1024)
-        #ret = zauxdll.ZAux_SearchEth(ctypes.byref(iplist), 1024, 200)
-        #ret = zauxdll.ZAux_SearchEth(ctypes.byref(ip), 1024, 200)
-        #s = iplist.value.decode()
-        #str_iplist = s.split()
-        #num = len(str_iplist)
-        #print(num," Controller(s) Found")
-        #print(*str_iplist, sep='\n')
-        #console.append("Searching...")
-  #      console.append(num," Controller(s) Found")
-        #return str_iplist, num
+    # def search(self, ip, console=[]):
+    # ip_val = ctypes.create_string_buffer(b'', 1024)
+    # ret = zauxdll.ZAux_SearchEth(ctypes.byref(iplist), 1024, 200)
+    # ret = zauxdll.ZAux_SearchEth(ctypes.byref(ip), 1024, 200)
+    # s = iplist.value.decode()
+    # str_iplist = s.split()
+    # num = len(str_iplist)
+    # print(num," Controller(s) Found")
+    # print(*str_iplist, sep='\n')
+    # console.append("Searching...")
+    # console.append(num," Controller(s) Found")
+    # return str_iplist, num
 
     def search(self, ip, console=[]):
-        #ip_val = ctypes.create_string_buffer(b'', 1024)
+        # ip_val = ctypes.create_string_buffer(b'', 1024)
         ip_bytes = ip.encode('utf-8')
         p_ip = ctypes.c_char_p(ip_bytes)
-        ret = zauxdll.ZAux_SearchEth(p_ip, 200)
-        print("ip:"+ip+'res:',p_ip.value)
+        zauxdll.ZAux_SearchEth(p_ip, 200)
+        print("ip:" + ip + 'res:', p_ip.value)
 
     #   Подключение контроллера
     def connect(self, ip, console=[]):
@@ -58,16 +59,16 @@ class ZMCWrapper:
         p_ip = ctypes.c_char_p(ip_bytes)
         print("Connecting to", ip, "...")
         ret = zauxdll.ZAux_OpenEth(p_ip, ctypes.pointer(self.handle))
-        msg = "Connected"
+
         if ret == 0:
             msg = ip + " Connected"
             self.sys_ip = ip
             self.is_connected = True
-            print("Connected")
+            print(msg)
         else:
             msg = "Connection Failed, Error " + str(ret)
             self.is_connected = False
-            print("Failed")
+            print(msg)
         self.state_changed |= 1
         return ret
 
@@ -78,7 +79,7 @@ class ZMCWrapper:
         self.state_changed |= 1
         return ret
 
-# Настройки параметров оси
+    # Настройки параметров оси
     # Установка типа оси
     def set_atype(self, iaxis, iValue):
         ret = zauxdll.ZAux_Direct_SetAtype(self.handle, int(iaxis), iValue)
@@ -103,7 +104,6 @@ class ZMCWrapper:
     def set_max_speed(self, iaxis, iValue):
         ret = zauxdll.ZAux_Direct_SetMaxSpeed(self.handle, int(iaxis), ctypes.c_int(iValue))
         return ret
-
 
     def set_speed(self, iaxis, iValue):
         if (iaxis in range(3, 6)) or (iaxis in range(9, 12)):
@@ -153,62 +153,61 @@ class ZMCWrapper:
         iValue = (ctypes.c_float)()
         ret = zauxdll.ZAux_Direct_GetSpeed(self.handle, int(iaxis), ctypes.byref(iValue))
         if ret == 0:
-            print("Get Axis (", iaxis, ") Speed:",  iValue.value)
+            print("Get Axis (", iaxis, ") Speed:", iValue.value)
         else:
             print("Get Axis (", iaxis, ") Speed fail!")
         return ret, int(iValue.value)
 
-#  Движение
+    #  Движение
     # Линейное движение
     def move(self, iaxis, iValue):
-        ret = zauxdll.ZAux_Direct_Single_Move(self.handle,  int(iaxis), ctypes.c_float(iValue))
+        ret = zauxdll.ZAux_Direct_Single_Move(self.handle, int(iaxis), ctypes.c_float(iValue))
         return ret
 
     #
     def vmove(self, iaxis, idir):
-        ret = zauxdll.ZAux_Direct_Single_Vmove(self.handle,  int(iaxis), idir)
+        ret = zauxdll.ZAux_Direct_Single_Vmove(self.handle, int(iaxis), idir)
         return ret
 
     def move_to(self, iaxis, ipos):
-        ret = zauxdll.ZAux_Direct_Single_MoveAbs(self.handle,  int(iaxis), ctypes.c_float(ipos))
+        ret = zauxdll.ZAux_Direct_Single_MoveAbs(self.handle, int(iaxis), ctypes.c_float(ipos))
         return ret
 
-
     def stop(self, iaxis, imode=0):
-        ret = zauxdll.ZAux_Direct_Single_Cancel(self.handle,  int(iaxis), imode)
+        ret = zauxdll.ZAux_Direct_Single_Cancel(self.handle, int(iaxis), imode)
         return ret
 
     def platform_to_home(self, iaxis, imode):
-        ret = zauxdll.ZAux_Direct_Single_Datum(self.handle,  int(iaxis), imode)
+        ret = zauxdll.ZAux_Direct_Single_Datum(self.handle, int(iaxis), imode)
         if ret == 0:
             print("axis (", iaxis, ") Datum submited!")
         else:
             print("Datum fail!")
         return ret
 
-# Позиции
+    # Позиции
     def get_pos(self, iaxis):
         iPos = ctypes.c_float()
         ret = zauxdll.ZAux_Direct_GetMpos(self.handle, int(iaxis), ctypes.byref(iPos))
         if ret == 0:
-#            print("Get Axis (", iaxis, ") MPos:", iPos.value)
+            #            print("Get Axis (", iaxis, ") MPos:", iPos.value)
             return iPos.value
         else:
             print("Get Axis (", iaxis, ") MPos fail!")
             return 100000000
 
     def set_pos(self, iaxis, iPos):
-        ret = zauxdll.ZAux_Direct_SetMpos(self.handle,  int(iaxis), ctypes.c_float(iPos))
+        ret = zauxdll.ZAux_Direct_SetMpos(self.handle, int(iaxis), ctypes.c_float(iPos))
         return ret
 
     def is_in_motion(self, iaxis):
         iValue = (ctypes.c_int)()
-        ret = zauxdll.ZAux_Direct_GetIfIdle(self.handle,  int(iaxis), ctypes.byref(iValue))
+        ret = zauxdll.ZAux_Direct_GetIfIdle(self.handle, int(iaxis), ctypes.byref(iValue))
         return iValue.value
 
     def get_state(self, iaxis):
         iValue = (ctypes.c_int)()
-        ret = zauxdll.ZAux_Direct_GetAxisStatus(self.handle,  int(iaxis), ctypes.byref(iValue))
+        ret = zauxdll.ZAux_Direct_GetAxisStatus(self.handle, int(iaxis), ctypes.byref(iValue))
         if ret == 0:
             return iValue.value
         else:
@@ -216,7 +215,7 @@ class ZMCWrapper:
 
     def get_DatumIn(self, iaxis):
         iValue = (ctypes.c_int)()
-        ret = zauxdll.ZAux_Direct_GetDatumIn(self.handle,  int(iaxis), ctypes.byref(iValue))
+        ret = zauxdll.ZAux_Direct_GetDatumIn(self.handle, int(iaxis), ctypes.byref(iValue))
         if ret == 0:
             return iValue.value
         else:

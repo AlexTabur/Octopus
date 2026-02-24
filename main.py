@@ -210,9 +210,11 @@ with dpg.window(tag="main_window", no_resize=True):
             context.config_ctrl.init_config_page()
 
     log_window = dpg.add_child_window(autosize_x=True, autosize_y=True)
-    context.logger = Logger(parent=log_window)  # , w_width=context.main_width-15, w_heigth=100, w_x=0, w_y=context.main_height-140)
+    context.logger = Logger(
+        parent=log_window)  # , w_width=context.main_width-15, w_heigth=100, w_x=0, w_y=context.main_height-140)
 
 # dpg.show_style_editor()
+
 dpg.create_viewport(title=txt.MAIN_TITLE, width=context.main_width, height=context.main_height)
 dpg.setup_dearpygui()
 dpg.show_viewport()

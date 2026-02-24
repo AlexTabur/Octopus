@@ -52,8 +52,7 @@ class MeasurePowerMap:
 
         context.pmap_procedures.y_axis = int(context.axis[context.pmap_procedures.y_idx]['idx'])
         context.pmap_procedures.x_axis = int(context.axis[context.pmap_procedures.x_idx]['idx'])
-        context.pmap_procedures.horiz_axis = int(context.axis[context.pmap_procedures.horiz_idx]['idx']) #TODO
-        context.pmap_procedures.pitch_axis = int(context.axis[context.pmap_procedures.pitch_idx]['idx'])
+        context.pmap_procedures.horiz_axis = int(context.axis[context.pmap_procedures.horiz_idx]['idx'])
 
     def plot_callback(self, sender, app_data, user_data):
         if self.pm_mode == 0:

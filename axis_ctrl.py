@@ -1,7 +1,5 @@
 import time
-from core.consts import *
 from threading import Thread
-from core.context import Context
 from core.utils import *
 
 context = Context()
@@ -11,121 +9,14 @@ RIGHT_CHAN = 0x000
 
 
 class PlatformController:
-    # »нициализаци¤ параметров
+    # инициализация параметров
     def __init__(self):
         pass
 
-    def connect_platform(self):
-        if not context.platform_connect_thread.is_alive():
-            context.platform_connect_thread = Thread(target=context.zplatform.connect,
-                                                     args=[context.plarforms_controller_ip, ], daemon=True)
-            context.platform_connect_thread.start()
-            return True
-        return False
-        # str_iplist, num = context.zplatform.search()
-        # print('num=',num)
-        # print('str_iplist=', str_iplist)
-        # if context.zplatform.search(context.plarforms_controller_ip):
-        # context.zplatform.search(context.plarforms_controller_ip)
-        # if context.zplatform.search(context.table_controller_ip):
-        # context.zplatform.search(context.table_controller_ip)
-        # context.zplatform.search("192.168.0.13")
-
-    #        if context.zplatform.is_connected:
-    #            context.platforms_initialized = False
-    #            self.set_platforms_speed(context.speed_value_platform)
-
-    def connect_table(self):
-        if (not context.table_connect_thread.is_alive()) and (not context.ztable.is_connected):
-            context.table_connect_thread = Thread(target=context.ztable.connect, args=[context.table_controller_ip, ],
-                                                  daemon=True)
-            context.table_connect_thread.start()
-            return True
-        return False
-
-    #        if context.ztable.is_connected:
-    #            context.ztable.set_speed(AXIS_TABLE,50000)
-    #            context.ztable.set_accel(AXIS_TABLE,20000)
-
-    def disconnect_platform(self):
+    def set_platforms_speed(self, speed):
         if context.zplatform.is_connected:
-            context.zplatform.disconnect()
-            context.gui_hlp.init_platforms_complete(False)
-
-    def disconnect_table(self):
-        if context.ztable.is_connected:
-            context.ztable.disconnect()
-
-    def move_axis(self, dir, axis):
-        # context.logger.log_warning(str(axis) + " " + str(dir))
-        # return
-        if axis != -1:
-            context.current_axis = axis
-            if context.zplatform.is_connected:
-                # print("moving on axis = ", abs(context.current_axis))
-                if context.ctrl_mode == CTRL_MODE_CONT:
-                    context.zplatform.vmove(axis, dir)
-                else:
-                    context.zplatform.move(axis, dir * context.step_value_platform)
-            else:
-                context.logger.log_warning("Контроллер платформ не подключен")
-
-    def move_table(self, dir):
-        context.current_axis = AXIS_TABLE + 14
-        if context.ztable.is_connected:
-            if context.ctrl_mode == CTRL_MODE_CONT:
-                print('ztable.vmove axis ', AXIS_TABLE)
-                context.ztable.vmove(AXIS_TABLE, dir)
-            else:
-                context.ztable.move(AXIS_TABLE, dir * context.step_value_table)
-        else:
-            context.logger.log_warning("Контроллер стола не подключен")
-
-    def stop_cur_axis(self):
-        if context.zplatform.is_connected and context.current_axis != -1:
-            if context.current_axis < 12:
-                context.zplatform.stop(context.current_axis, 3)
-            else:
-                context.ztable.stop(AXIS_TABLE, 3)
-        context.current_axis = -1
-
-    def get_axis_move_params(self, axis):
-        if context.zplatform.is_connected:
-            acc = context.zplatform.get_accel(axis)
-            dec = context.zplatform.get_decel(axis)
-        else:
-            acc = -1
-            dec = -1
-        return acc, dec
-
-    def readAccValues(self, platform):
-        if context.zplatform.is_connected:
-            for i in range(0, 13, 1):
-                context.axis[i]['acc'] = context.zplatform.get_accel(context.axis[i]['idx'])
-
-    def readDecValues(self, platform):
-        if context.zplatform.is_connected:
-            for i in range(0, 13, 1):
-                context.axis[i]['dec'] = context.zplatform.get_decel(context.axis[i]['idx'])
-
-    def get_all_axis_pos(self):
-        if context.zplatform.is_connected:
-            for i in range(0, 13, 1):
-                pos = context.zplatform.get_pos(context.axis[i]['idx'])
-                if pos == 100000000:  # disconnected
-                    context.zplatform.state_changed |= 1
-                    context.zplatform.is_connected = False
-                    pos = 99999999  # '***'
-                context.axis[i]['pos'] = pos
-
-        if context.ztable.is_connected:
-            pos = context.ztable.get_pos(context.axis[context.y_table_i]['idx'])
-            if pos == 100000000:  # disconnected
-                context.ztable.state_changed |= 1
-                context.ztable.is_connected = False
-                pos = 99999999  # '***'
-
-            context.axis[context.y_table_i]['pos'] = pos
+            for i in range(0, 12, 1):
+                context.zplatform.set_speed(i, speed)
 
     def get_all_axis_state(self):
         if context.zplatform.is_connected:
@@ -133,11 +24,6 @@ class PlatformController:
                 context.axis[i]['state'] = context.zplatform.get_state(context.axis[i]['idx'])
         if context.ztable.is_connected:
             context.axis[context.y_table_i]['state'] = context.ztable.get_state(context.axis[context.y_table_i]['idx'])
-
-    def set_platforms_speed(self, speed):
-        if context.zplatform.is_connected:
-            for i in range(0, 12, 1):
-                context.zplatform.set_speed(i, speed)
 
     def set_table_speed(self, speed):
         if context.ztable.is_connected:
@@ -339,10 +225,6 @@ class PlatformController:
             context.gui_hlp.popup_close()
             return False
 
-        y_idx = 0
-        x_idx = 0
-        x_dir = 0
-        y_dir = 0
         x_axis = 0
         x_speed = 0
         y_axis = 0
@@ -502,3 +384,115 @@ class PlatformController:
             context.ztable.set_speed(context.axis[context.y_table_i]['idx'], context.speed_value_platform)
 
         context.gui_hlp.popup_close()
+
+    def get_all_axis_pos(self):
+        if context.zplatform.is_connected:
+            for i in range(0, 13, 1):
+                pos = context.zplatform.get_pos(context.axis[i]['idx'])
+                if pos == 100000000:  # disconnected
+                    context.zplatform.state_changed |= 1
+                    context.zplatform.is_connected = False
+                    pos = 99999999  # '***'
+                context.axis[i]['pos'] = pos
+
+        if context.ztable.is_connected:
+            pos = context.ztable.get_pos(context.axis[context.y_table_i]['idx'])
+            if pos == 100000000:  # disconnected
+                context.ztable.state_changed |= 1
+                context.ztable.is_connected = False
+                pos = 99999999  # '***'
+
+            context.axis[context.y_table_i]['pos'] = pos
+
+    def get_axis_move_params(self, axis):
+        if context.zplatform.is_connected:
+            acc = context.zplatform.get_accel(axis)
+            dec = context.zplatform.get_decel(axis)
+        else:
+            acc = -1
+            dec = -1
+        return acc, dec
+
+    def stop_cur_axis(self):
+        if context.zplatform.is_connected and context.current_axis != -1:
+            if context.current_axis < 12:
+                context.zplatform.stop(context.current_axis, 3)
+            else:
+                context.ztable.stop(AXIS_TABLE, 3)
+        context.current_axis = -1
+
+    def move_table(self, dir_):
+        context.current_axis = AXIS_TABLE + 14
+        if context.ztable.is_connected:
+            if context.ctrl_mode == CTRL_MODE_CONT:
+                print('ztable.vmove axis ', AXIS_TABLE)
+                context.ztable.vmove(AXIS_TABLE, dir_)
+            else:
+                context.ztable.move(AXIS_TABLE, dir_ * context.step_value_table)
+        else:
+            context.logger.log_warning("Контроллер стола не подключен")
+
+    def readAccValues(self, platform):
+        if context.zplatform.is_connected:
+            for i in range(0, 13, 1):
+                context.axis[i]['acc'] = context.zplatform.get_accel(context.axis[i]['idx'])
+
+    def readDecValues(self, platform):
+        if context.zplatform.is_connected:
+            for i in range(0, 13, 1):
+                context.axis[i]['dec'] = context.zplatform.get_decel(context.axis[i]['idx'])
+
+    def move_axis(self, dir_, axis):
+        # context.logger.log_warning(str(axis) + " " + str(dir))
+        # return
+        if axis != -1:
+            context.current_axis = axis
+            if context.zplatform.is_connected:
+                # print("moving on axis = ", abs(context.current_axis))
+                if context.ctrl_mode == CTRL_MODE_CONT:
+                    context.zplatform.vmove(axis, dir_)
+                else:
+                    context.zplatform.move(axis, dir_ * context.step_value_platform)
+            else:
+                context.logger.log_warning("Контроллер платформ не подключен")
+
+    def disconnect_platform(self):
+        if context.zplatform.is_connected:
+            context.zplatform.disconnect()
+            context.gui_hlp.init_platforms_complete(False)
+
+    def disconnect_table(self):
+        if context.ztable.is_connected:
+            context.ztable.disconnect()
+
+    def connect_table(self):
+        if (not context.table_connect_thread.is_alive()) and (not context.ztable.is_connected):
+            context.table_connect_thread = Thread(target=context.ztable.connect, args=[context.table_controller_ip, ],
+                                                  daemon=True)
+            context.table_connect_thread.start()
+            return True
+        return False
+
+    def connect_platform(self):
+        if not context.platform_connect_thread.is_alive():
+            context.platform_connect_thread = Thread(target=context.zplatform.connect,
+                                                     args=[context.plarforms_controller_ip, ], daemon=True)
+            context.platform_connect_thread.start()
+            return True
+        return False
+        # str_iplist, num = context.zplatform.search()
+        # print('num=',num)
+        # print('str_iplist=', str_iplist)
+        # if context.zplatform.search(context.plarforms_controller_ip):
+        # context.zplatform.search(context.plarforms_controller_ip)
+        # if context.zplatform.search(context.table_controller_ip):
+        # context.zplatform.search(context.table_controller_ip)
+        # context.zplatform.search("192.168.0.13")
+
+    #        if context.zplatform.is_connected:
+    #            context.platforms_initialized = False
+    #            self.set_platforms_speed(context.speed_value_platform)
+
+    #        if context.ztable.is_connected:
+    #            context.ztable.set_speed(AXIS_TABLE,50000)
+    #            context.ztable.set_accel(AXIS_TABLE,20000)

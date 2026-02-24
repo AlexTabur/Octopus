@@ -21,7 +21,7 @@ class Socket(AbstractConnection):
         self.__ip, self.__port = self.__addr.split(':')
         if not (self.__ip and self.__port):
             raise ConnectionError(f'ip or port not found in {self.__addr}')
-
+        
         self.__sock = socket(AF_INET, SOCK_STREAM)
         self.__sock.settimeout(self.__timeout)
         res = self.__sock.connect_ex((self.__ip, int(self.__port)))
