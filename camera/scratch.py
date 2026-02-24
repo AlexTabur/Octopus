@@ -75,14 +75,15 @@ def rotate_z(context, angle1, right):
         context.current_axis = axis
         if context.zplatform.is_connected:
             # print("moving on axis = ", abs(context.current_axis))
-            steps_per_degree = 2470
-            context.zplatform.move(axis, angle1 * steps_per_degree)
+            steps_per_degree = 2360
+            print(angle1)
+            context.zplatform.move(axis, steps_per_degree*angle1)
             # print(self.angle1, self.angle2, self.angle1 - self.angle2)
         else:
             print("not connected")
 
 
-def move_x(context, delta, right):
+def move_x(context, delta, right, obj):
     if right:
         axis = context.axis[context.x2_line_i]['idx']
     else:
@@ -93,7 +94,8 @@ def move_x(context, delta, right):
             # print("moving on axis = ", abs(context.current_axis))
 
             print(delta)
-            context.zplatform.move(axis, delta * 6000*8/871.894-50*8)
+            # 32.961405521725055
+            context.zplatform.move(axis, delta * 1600/38)
         else:
             print("not connected")
     # context.zcontrollers.move_axis(int(context.axis[context.z2_line_i]['dir_fw']),

@@ -16,8 +16,8 @@ from core.utils import *
 context = Context()
 
 
-def append_to_lines(line_, lines_2_x, lines_2_y, lines_3_x, lines_3_y):
-    if line_[1] < 1000 and line_[3] < 1000:
+def append_to_lines(line_, lines_2_x, lines_2_y, lines_3_x, lines_3_y, a):
+    if line_[1] < a.n_w*0.5*a.val/100 and line_[3] < a.n_w*0.5*a.val/100:
         lines_2_x.append(line_[0])
         lines_2_y.append(line_[1])
         lines_2_x.append(line_[2])
@@ -131,17 +131,17 @@ class MotionGUI:
         if ret_temp != MV_OK:
             return
         self.NeedBufSize = int(stPayloadSize.nCurValue)
-        self.val = 30
+        self.val = 40
         self.val2 = 10 * 2 + 1
-        self.threshold1 = 100
-        self.threshold2 = 150
+        self.threshold1 = 200
+        self.threshold2 = 255
         self.rho = 1  # ui.rho.value()
         self.theta = np.pi / 180 / 10  # ui.theta.value()
-        self.threshold = 300
+        self.threshold = 200
         self.n_w, self.n_h = 5120, 5120
-        self.minLineLength = 5 / 100 * self.n_w * self.val / 100
-        self.maxLineGap = 3 / 100 * self.n_w * self.val / 100
-        self.c_x, self.c_y = 2600, 2600
+        self.minLineLength = 0 / 100 * self.n_w * self.val / 100
+        self.maxLineGap = 100 / 100 * self.n_w * self.val / 100
+        self.c_x, self.c_y = int(self.n_w/2), int(self.n_w/2)
         self.last_photo_taken = time.time()
         if self.buf_grab_image_size < self.NeedBufSize:
             self.buf_grab_image = (self.NeedBufSize * ctypes.c_ubyte)()
@@ -161,47 +161,52 @@ class MotionGUI:
                 self.obj_cam.MV_CC_GetOneFrameTimeout(self.buf_grab_image, self.buf_grab_image_size, self.stFrameInfo)
                 self.last_photo_taken = time.time()
 
-            resized = resize_image(Mono_numpy(self.buf_grab_image, self.n_w, self.n_h), self.val)
-            resized = cv2.transpose(cv2.flip(resized, flipCode=1))
-            # cv2.medianBlur(resized, 3, 3, dst=resized)
-            edges = cv2.Canny(resized, self.threshold1, self.threshold2)
-            # edges &= self.mask
+                resized = resize_image(Mono_numpy(self.buf_grab_image, self.n_w, self.n_h), self.val)
+                resized = cv2.transpose(cv2.flip(resized, flipCode=1))
+                cv2.normalize(resized, resized, 255.0, 0.0, norm_type=cv2.NORM_MINMAX)
+                resized = cv2.medianBlur(resized, 7)
+                # resized = cv2.Sobel(resized, cv2.CV_8U, 0, 1)
+                edges = cv2.Canny(resized, self.threshold1, self.threshold2)
+                # edges &= self.mask
 
-            final = cv2.cvtColor(resized, cv2.COLOR_GRAY2RGB)
-            if not self.fixed:
-                self.lines_ = cv2.HoughLinesP(edges, self.rho, self.theta, self.threshold,
-                                              minLineLength=self.minLineLength,
-                                              maxLineGap=self.maxLineGap)
-            lines_2_x = []
-            lines_2_y = []
-            lines_3_x = []
-            lines_3_y = []
-            if self.lines_ is not None:
-                if len(self.lines_) > 1:
-                    for line in self.lines_:
-                        k = get_k(line[0])
-                        if abs(k) < 1:
-                            append_to_lines(line[0], lines_2_x, lines_2_y, lines_3_x, lines_3_y)
+                final = cv2.cvtColor(resized, cv2.COLOR_GRAY2RGB)
+                if not self.fixed:
+                    self.lines_ = cv2.HoughLinesP(edges, self.rho, self.theta, self.threshold,
+                                                  minLineLength=self.minLineLength,
+                                                  maxLineGap=self.maxLineGap)
+                lines_2_x = []
+                lines_2_y = []
+                lines_3_x = []
+                lines_3_y = []
+                if self.lines_ is not None:
+                    if len(self.lines_) > 1:
+                        for line in self.lines_:
+                            k = get_k(line[0])
+                            if abs(k) < 1:
+                                append_to_lines(line[0], lines_2_x, lines_2_y, lines_3_x, lines_3_y, self)
 
-            if len(lines_2_x) > 0:
-                m, b = np.polyfit(lines_2_x, lines_2_y, 1)
-                self.angle1 = np.atan(m) * 180 / np.pi
-                cv2.line(final, (0, int(get_y(0, m, b))),
-                         (int(self.n_w * self.val), int(get_y(int(self.n_w * self.val), m, b))),
-                         (0, 255, 0),
-                         int(0.1 * self.val))
-                self.b1 = b
-            if len(lines_3_x) > 0:
-                m, b = np.polyfit(lines_3_x, lines_3_y, 1)
-                self.angle2 = np.atan(m) * 180 / np.pi
-                cv2.line(final, (0, int(get_y(0, m, b))),
-                         (int(self.n_w * self.val), int(get_y(int(self.n_w * self.val), m, b))),
-                         (0, 255, 0),
-                         int(0.1 * self.val))
-                self.b2 = b
+                if len(lines_2_x) > 0:
+                    m, b = np.polyfit(lines_2_x, lines_2_y, 1)
+                    self.angle1 = np.atan(m) * 180 / np.pi
+                    cv2.line(final, (0, int(get_y(0, m, b))),
+                             (int(self.n_w * self.val), int(get_y(int(self.n_w * self.val), m, b))),
+                             (0, 255, 0),
+                             int(0.1 * self.val))
+                    self.b1 = b
+                    self.k1 = m
+                if len(lines_3_x) > 0:
+                    m, b = np.polyfit(lines_3_x, lines_3_y, 1)
+                    self.angle2 = np.atan(m) * 180 / np.pi
+                    cv2.line(final, (0, int(get_y(0, m, b))),
+                             (int(self.n_w * self.val), int(get_y(int(self.n_w * self.val), m, b))),
+                             (0, 255, 0),
+                             int(0.1 * self.val))
+                    self.b2 = b
+                    self.k2 = m
 
-            # display_img("camera_1", cv2.resize(cv2.cvtColor(edges, cv2.COLOR_GRAY2RGB), (400, 400)))
-            display_img("camera_1", cv2.resize(final, (400, 400)))
+                display_img("camera_1", cv2.resize(cv2.flip(cv2.cvtColor(cv2.transpose(edges), cv2.COLOR_GRAY2RGB), flipCode=1), (400, 400)))
+                display_img("camera_2", cv2.resize(cv2.flip(cv2.transpose(final), flipCode=1), (400, 400)))
+                # cv2.imshow("img", edges)
 
     def loop(self):
         if context.zplatform.state_changed & 1:
@@ -567,14 +572,15 @@ class MotionGUI:
         dpg.add_image('texture_z', pos=(89 + left_margin, 223 + top_margin))
 
         dpg.add_image('camera_1', pos=(left_margin, top_margin + 500))
+        dpg.add_image('camera_2', pos=(left_margin+600, top_margin + 500))
         dpg.add_button(label="rotate", pos=(left_margin + 400, top_margin + 500),
-                       callback=lambda: rotate_z(context, self.angle1 - self.angle2, False))
+                       callback=lambda: rotate_z(context, self.angle2 - self.angle1, False))
         dpg.add_button(label="rotate", pos=(left_margin + 500, top_margin + 500),
                        callback=lambda: rotate_z(context, self.angle2 - self.angle1, True))
         dpg.add_button(label="move", pos=(left_margin + 400, top_margin + 550),
-                       callback=lambda: move_x(context, self.b1 - self.b2, False))
+                       callback=lambda: move_x(context, (self.b2 - self.b1)/np.sqrt(self.k1**2+1), False, self))
         dpg.add_button(label="move", pos=(left_margin + 500, top_margin + 550),
-                       callback=lambda: move_x(context, self.b2 - self.b1, True))
+                       callback=lambda: move_x(context, (self.b2 - self.b1)/np.sqrt(self.k1**2+1), True, self))
         #dpg.add_image('camera_2', pos=(x_, 223 + top_margin))
         # dpg.add_button(label="Начать", pos=(x_, -23 + top_margin+201), callback=lambda sender, app_data: camera_connect(sender, app_data, 0))
         # stOutFrame = MV_FRAME_OUT()
@@ -844,6 +850,8 @@ class MotionGUI:
 
         dpg.add_raw_texture(width=400, height=400, default_value=np.zeros((400, 400, 3), dtype=np.float32),
                             tag="camera_1", format=dpg.mvFormat_Float_rgb)
+        dpg.add_raw_texture(width=400, height=400, default_value=np.zeros((400, 400, 3), dtype=np.float32),
+                            tag="camera_2", format=dpg.mvFormat_Float_rgb)
 
         # dpg.add_raw_texture(width=400, height=400, default_value=np.zeros((400,400,3), dtype=np.float32), tag="camera_2", format=dpg.mvFormat_Float_rgb)
         dpg.pop_container_stack()
