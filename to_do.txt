@@ -1,0 +1,263 @@
+- доделать и проверить измериловку спектра
+- добавить больше пресетов + названия к ним
+
+
+
+    def prepArray(self):
+        self.max_val = self.ser_data.max()
+        self.min_val = self.ser_data.min()
+        self.diap = self.max_val - self.min_val
+        if self.diap==0:
+            context.logger.log("Измеренный массив однороден")
+            return False
+        for x in range(0, self.y_count):
+            for y in range(0, self.z_count):
+                color = int(0xFF*(self.ser_data[x][y] - self.min_val)/self.diap)
+                self.ser_data[x][y] = (color << 32) | color
+        return True
+
+    def draw_scale(self):
+        side = 1
+        for y in range(0, self.z_count):
+            legend_width = self.y_count / 4
+            #red = (int(self.min_val+y*self.diap/self.z_count) >> 32) & 0xFF
+            red = int(y/self.z_count*0xFF)
+            blue = 0  # ~int(self.ser_data[y][z]) & 0xFF
+            color = (red, 0, blue)
+            x0 = self.y_count * side
+            x1 = self.y_count * side + legend_width
+            y0 = y * side
+            y1 = y * side + side
+            dpg.draw_quad((x0, y0), (x0, y1), (x1, y1), (x1, y0), thickness=0.05,
+                          fill=color, color=(10, 10, 10))
+            dpg.draw_text(pos=(x0, y1), text=str(self.min_val+y*self.diap/self.z_count), color=(200, 200, 200), size=0.5)
+
+    def draw_map(self):
+        side = 1
+        for z in range(0, self.z_count):
+            for y in range(0, self.y_count):
+                #                   self.ser_data[i][j] = 1 - ((i-25)*(j-25)/(25*25))
+                #                   dpg.draw_quad((-2, -2), (-2, 2), (2, 2), (2, -2), label="qwe", thickness=0.1)
+                red = (int(self.ser_data[y][z]) >> 32) & 0xFF
+                blue = 0  # ~int(self.ser_data[y][z]) & 0xFF
+                color = (red, 0, blue)
+                x0 = y * side
+                x1 = y * side + side
+                y0 = z * side
+                y1 = z * side + side
+                dpg.draw_quad((x0, y0), (x0, y1), (x1, y1), (x1, y0), thickness=0.05,
+                              fill=color, color=color)
+        (minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(self.ser_data)
+        # круг на максимальном пикселе
+        dpg.draw_circle(center=maxLoc, radius=1, thickness=0.05, color=(255, 255, 255))
+
+        dpg.set_axis_limits("y_axis", 0, self.z_count)
+        dpg.set_axis_limits("x_axis", 0, self.y_count+self.y_count / 4)
+
+        return maxLoc
+
+    def plot_callback(self, sender, app_data, user_data):
+        x,y = dpg.get_plot_mouse_pos()
+        if x>self.x_scale: return
+        x -= self.y_count/2
+        y -= self.z_count/2
+#        context.logger.log_com("x="+str(int(x))+" y="+str(int(y)))
+        if self.platform == 0:  # LEFT platform
+            z_line = context.z1_line_i
+            y_line = context.y1_line_i
+        else:  # RIGHT platform
+            z_line = context.z2_line_i
+            y_line = context.y2_line_i
+
+        z_axis = int(context.axis[z_line]['idx'])
+        y_axis = int(context.axis[y_line]['idx'])
+
+        # Откатились в угол сканируемой области
+        # X - Width/2
+        z_dir = int(context.axis[z_line]['dir_fw'])
+        # Y - Width/2
+        y_dir = int(context.axis[y_line]['dir_fw'])
+        self.set_pos(y_axis, z_axis, y_dir * self.delta * int(x), z_dir * self.delta * int(y))
+
+    def set_pos(self, x_axis, y_axis, x, y):
+        context.zplatform.move(y_axis, y)
+        context.zplatform.move(x_axis, x)
+        while context.zcontrollers.is_platforms_axis_busy():
+            pass
+
+    def prepare(self,group_id):
+       # creating sample data
+       for z in range(0, self.z_count):
+           for y in range(0, self.y_count):
+#                self.ser_data[i][j] = 1 - ((i-25)*(j-25)/(25*25))
+                self.ser_data[y][z] = (1 - ((z - self.z_count / 2) ** 2) / ((self.z_count ** 2) / 4)) * \
+                                      (1 - ((y - self.y_count/2) ** 2) / ((self.y_count ** 2)/4))
+
+       dpg.delete_item(group_id, children_only=True)
+       dpg.push_container_stack(group_id)
+       dpg.add_spacer(height=10)
+       with dpg.group(horizontal=True):
+           context.meas_chart = dpg.add_plot(label="Power map", height=400, width=500, no_menus=True, no_title=True)
+           if not dpg.does_item_exist("widget handler"):
+            with dpg.item_handler_registry(tag="widget handler"):
+                   dpg.add_item_clicked_handler(button=0, callback=self.plot_callback)
+           dpg.bind_item_handler_registry(context.meas_chart, "widget handler")
+           dpg.push_container_stack(context.meas_chart)
+           # optionally create legend
+           # dpg.add_plot_legend()
+           # REQUIRED: create z and y axes
+           dpg.add_plot_axis(dpg.mvXAxis, label="", tag="x_axis", no_tick_labels=True, no_tick_marks=True)
+           dpg.add_plot_axis(dpg.mvYAxis, label="", tag="y_axis", no_tick_labels=True, no_tick_marks=True)
+           # series belong to a y axis
+           #dpg.draw_quad((-2, -2), (-2, 2), (2, 2), (2, -2), label="qwe", thickness=0.1)
+#           dpg.add_heat_series(self.ser_data, rows=self.z_count, cols=self.y_count, parent="y_axis", tag="series_data", )
+
+           self.prepArray()
+           self.draw_map()
+           self.draw_scale()
+
+           dpg.pop_container_stack()  # pop chart context
+           with dpg.group(horizontal=True):
+               with dpg.group():
+                   dpg.add_text(default_value="Платформа")
+                   dpg.add_radio_button(tag="pmap_platform", items=[LEFT, RIGHT], horizontal=True, default_value=LEFT)
+
+                   dpg.add_text(default_value="Канал измерителя")
+                   dpg.add_radio_button(tag="pmap_meas_chanel", items=["0", "1", "2", "3"],
+                                        horizontal=True, default_value=str(self.chan))
+                   dpg.add_text(default_value="Точек по Z")
+                   dpg.add_input_int(tag="pmap_z_count", width=100, default_value=self.z_count,
+                                     min_value=4, max_value=50, min_clamped=True, max_clamped=True)
+                   dpg.add_text(default_value="Точек по Y")
+                   dpg.add_input_int(tag="pmap_y_count", width=100, default_value=self.z_count,
+                                     min_value=4, max_value=50, min_clamped=True, max_clamped=True)
+                   dpg.add_text(default_value=f"Шаг, x{NM_PER_STEP_X} нм")
+                   dpg.add_input_int(tag="pmap_delta", width=100, default_value=self.delta,
+                                     min_value=1, max_value=150, min_clamped=True, max_clamped=True)
+                   dpg.add_spacer(height=10)
+                   dpg.add_button(label="Провести измерение", width=200, height=30, callback=self.measure_powermap_callback)
+
+           dpg.pop_container_stack()  # pop group context
+
+    def measure_powermap_callback(self, sender, app_data, user_data):
+        context.gui_hlp.showMessage(txt.PLATFORM_INIT_MSG, txt.BREAK, DLG_CT_BREAK_PROC)
+        self.z_count = dpg.get_value("pmap_z_count")
+        self.y_count = dpg.get_value("pmap_y_count")
+        self.chan  = int(dpg.get_value("pmap_meas_chanel"))
+        self.delta  = dpg.get_value("pmap_delta")
+        if dpg.get_value("pmap_platform") == LEFT:
+            self.platform = 0
+        else:
+            self.platform = 1
+
+        self.thread_proc = threading.Thread(target=self.exec_measure_continues, args=[], daemon=True)
+#        self.thread_proc = threading.Thread(target=self.exec_measure, args=[], daemon=True)
+        self.thread_proc.start()
+
+    def exec_measure(self):
+        try:
+            if(not context.zplatform.is_connected) or (self.meas_dev.status!='ready'):
+                context.logger.log_warning('Не подключен контроллер платформ и/или измеритель мощности')
+                return
+
+            dpg.delete_item(context.meas_chart, children_only=True)
+            context.current_proc = 2
+            context.break_proc = False
+            self.ser_data = np.zeros(shape=[self.y_count, self.z_count])
+
+            if self.platform==0: # LEFT platform
+                z_line = context.z1_line_i
+                y_line = context.y1_line_i
+            else: # RIGHT platform
+                z_line = context.z2_line_i
+                y_line = context.y2_line_i
+
+            z_axis = int(context.axis[z_line]['idx'])
+            y_axis = int(context.axis[y_line]['idx'])
+    # сохранили изходные позиции
+            zero_pos_z = context.zplatform.get_pos(z_axis)
+            zero_pos_y = context.zplatform.get_pos(y_axis)
+    # устанавливаем скорость для сканирования
+            #context.zplatform.set_accel(y_axis, 1000)
+#            y_speed = context.zplatform.get_speed(y_axis)
+#            context.zplatform.set_speed(y_axis,1000)
+
+    # Откатились в угол сканируемой области
+    # X - Width/2
+            z_dir = int(context.axis[z_line]['dir_fw'])
+            context.zplatform.move(z_axis, -z_dir * self.delta * self.z_count / 2)
+    # Y - Width/2
+            y_dir = int(context.axis[y_line]['dir_fw'])
+            context.zplatform.move(y_axis, -y_dir * self.delta * self.y_count/2)
+
+            while context.zcontrollers.is_platforms_axis_busy() and (not context.break_proc):
+                pass
+            if context.break_proc: # прерывание по кнопке
+                return
+    # сохранили начальные позиции для сканирования
+            init_pos_z = context.zplatform.get_pos(z_axis)
+            init_pos_y = context.zplatform.get_pos(y_axis)
+
+    # Start scan
+            start = time.time()
+            z_idx = 0
+            z_sign = 1
+            for y in range(0, self.y_count):
+                for z in range(0, self.z_count):
+                    # Z + dZ
+                    context.zplatform.move(z_axis,z_sign * z_dir * self.delta)
+#                    context.logger.log("z_axis "+str(z_sign * z_dir * self.delta))  #delete ----------------------------------------
+                    while context.zcontrollers.is_platforms_axis_busy() and (not context.break_proc): # ждем установки позиции
+                        pass
+                    if context.break_proc:  # прерывание по кнопке
+                        return
+                    values = self.meas_dev.get_power()
+    #                self.ser_data[z][y] = dBm_to_mW(float(values[self.chan]))
+                    if z_sign>0:
+                        z_idx = z
+                    else:
+                        z_idx = self.z_count - z - 1
+                    self.ser_data[y][z_idx] = (float(values[self.chan]))
+#                    context.logger.log(f"data {y},{z_idx} = " + str(values[self.chan]))  # delete ----------------------------------------
+
+
+                z_sign *= -1 # разворачиваем напровление по Z
+                # Y + dY
+                context.zplatform.move(y_axis, y_dir * self.delta)
+#                context.logger.log("y_axis " + str(y_dir * self.delta)) #delete ----------------------------------------
+                while context.zcontrollers.is_platforms_axis_busy(): # ждем установки позиции
+                    pass
+                if context.break_proc: # прерывание по кнопке
+                    return
+            end = time.time()
+            context.logger.log("Время сканирования :" + str((end - start) * 10 ** 3) + "ms")
+
+            dpg.delete_item(context.meas_chart, children_only=True)
+
+            dpg.push_container_stack(context.meas_chart)
+            dpg.add_plot_axis(dpg.mvXAxis, label="", tag="x_axis", no_tick_labels=True, no_tick_marks=True)
+            dpg.add_plot_axis(dpg.mvYAxis, label="", tag="y_axis", no_tick_labels=True, no_tick_marks=True)
+
+            self.prepArray()
+            maxLoc = self.draw_map()
+            self.draw_scale()
+
+            dpg.pop_container_stack()  # pop chart context
+
+            if self.after_measure == GO_TO_ZERO: # Переход обратно в центр
+                context.zplatform.move_to(z_axis, zero_pos_z)
+                context.zplatform.move_to(y_axis, zero_pos_y)
+            elif self.after_measure == GO_TO_MAX: # Переход в позицию с максимальной мощностью излучения
+                context.zplatform.move_to(z_axis, init_pos_z + maxLoc[1]*self.delta)
+                context.zplatform.move_to(y_axis, init_pos_y + maxLoc[0]*self.delta)
+
+            while context.zcontrollers.is_platforms_axis_busy() and (not context.break_proc):  # ждем установки позиции
+                pass
+
+        finally:
+            context.gui_hlp.popup_close()
+            context.current_proc = 0
+#            context.zplatform.set_speed(y_axis, y_speed)
+
+            if context.break_proc: # прерывание по кнопке
+                context.logger.log('Измерение прервано')

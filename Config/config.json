@@ -1,0 +1,18 @@
+{   
+    "run_modes": ["normal", "testing"],
+    "run_mode": "testing",
+    "devices": [
+        {
+            "dev_name": "ITLA5300",
+            "type": "laser",
+            "interface": "com",
+            "enabled": true
+        },
+        {
+            "dev_name": "PM2100",
+            "type": "power_meter",
+            "interface": "ip",
+            "enabled": true
+        }
+    ]
+}

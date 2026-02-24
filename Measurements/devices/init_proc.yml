@@ -1,0 +1,84 @@
+- &id071
+  ans: 0420E008
+  cmd: 32
+  data: 255
+  rw: 1
+- *id071
+- &id072
+  ans: 4421E508
+  cmd: 33
+  data: 255
+  rw: 1
+- *id072
+- &id073
+  ans: C4800000
+  cmd: 128
+  data: 255
+  rw: 1
+- *id073
+- &id074
+  ans: E4280000
+  cmd: 40
+  data: 0
+  rw: 1
+- *id074
+- &id075
+  ans: E4280000
+  cmd: 40
+  data: 0
+  rw: 0
+- *id075
+- &id076
+  ans: F4290000
+  cmd: 41
+  data: 0
+  rw: 1
+- *id076
+- &id078
+  ans: C42A0000
+  cmd: 42
+  data: 0
+  rw: 1
+- *id078
+- &id142
+  ans: E436102C
+  cmd: 54
+  data: 4140
+  rw: 1
+- *id142
+- &id143
+  ans: 643500BF
+  cmd: 53
+  data: 191
+  rw: 1
+- *id143
+- &id144
+  ans: '75310000'
+  cmd: 49
+  data: 200
+  rw: 1
+- *id144
+- &id147
+  ans: '54320000'
+  cmd: 50
+  data: 0
+  rw: 1
+- *id147
+- &id150
+  ans: B43106F4
+  cmd: 49
+  data: 1780
+  rw: 1
+- *id150
+- &id151
+  ans: '54320000'
+  cmd: 50
+  data: 0
+  rw: 1
+- *id151
+- &id153
+  ans: '54320000'
+  cmd: 50
+  data: 0
+  rw: 1
+- *id153
