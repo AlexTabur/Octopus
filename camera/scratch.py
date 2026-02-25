@@ -1,11 +1,17 @@
 import cv2
 import numpy as np
 import dearpygui.dearpygui as dpg
+from numba import njit
+
+@njit
+def isHorizontal(line):
+    x1, y1, x2, y2 = line[0], line[1], line[2], line[3]
+    return abs(x2 - x1) > abs(y2 - y1)
 
 
 def get_k(line):
     x1, y1, x2, y2 = line[0], line[1], line[2], line[3]
-    if x2-x1 == 0:
+    if x2 - x1 == 0:
         return 1000
     return (y2 - y1) / (x2 - x1)
 
@@ -36,7 +42,7 @@ def angle(line):
     return -a
 
 
-def resize_image(img, scale_percent):
+def resize_image(img, scale_percent: int):
     width = int(img.shape[1] * scale_percent / 100)
     height = int(img.shape[0] * scale_percent / 100)
     dim = (width, height)
@@ -62,8 +68,6 @@ def Mono_numpy(data, nWidth, nHeight):
     bytes_as_np_array = np.frombuffer(data, count=int(nWidth * nHeight), dtype=np.uint8).reshape((nWidth, nHeight))
 
     return bytes_as_np_array
-
-
 
     # context.zcontrollers.move_axis(int(context.axis[context.z2_line_i]['dir_fw']),
     #                                 context.axis[context.z2_line_i]['idx'])

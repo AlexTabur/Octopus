@@ -8,7 +8,7 @@ import axis_ctrl
 from camera.CameraParams_header import *
 from camera.MvCameraControl_class import *
 from camera.MvErrorDefine_const import *
-from camera.scratch import get_k, get_y, resize_image, Mono_numpy, display_img
+from camera.scratch import get_y, resize_image, Mono_numpy, display_img, isHorizontal
 from core.gui_helper import *
 from core.utils import *
 
@@ -97,9 +97,124 @@ def move_z_1(right):
             print("not connected")
 
 
+def movement_by_keys(key_vk, key, ctrl, alt):
+    if not ctrl and not alt:
+        return
+    #        for editor in context.editor_list:
+    #            if dpg.is_item_focused(editor):
+    #                return
+    # Left platform
+    if not context.lock_left_side:
+        if key_vk == 65:  # A
+            if ctrl:  # Y Rotate
+                context.zcontrollers.move_axis(int(context.axis[context.y1_ang_i]['dir_bw']),
+                                               context.axis[context.y1_ang_i]['idx'])
+            else:  # X Left
+                context.zcontrollers.move_axis(int(context.axis[context.x1_line_i]['dir_bw']),
+                                               context.axis[context.x1_line_i]['idx'])
+        elif key_vk == 68:  # D
+            if ctrl:  # Y Rotate
+                context.zcontrollers.move_axis(int(context.axis[context.y1_ang_i]['dir_fw']),
+                                               context.axis[context.y1_ang_i]['idx'])
+            else:  # X Right
+                context.zcontrollers.move_axis(int(context.axis[context.x1_line_i]['dir_fw']),
+                                               context.axis[context.x1_line_i]['idx'])
+
+        elif key_vk == 87:  # W
+            if ctrl:  # X Rotate
+                context.zcontrollers.move_axis(int(context.axis[context.x1_ang_i]['dir_fw']),
+                                               context.axis[context.x1_ang_i]['idx'])
+            else:  # Y Up
+                context.zcontrollers.move_axis(int(context.axis[context.y1_line_i]['dir_fw']),
+                                               context.axis[context.y1_line_i]['idx'])
+        elif key_vk == 83:  # S
+            if ctrl:  # X Rotate
+                context.zcontrollers.move_axis(int(context.axis[context.x1_ang_i]['dir_bw']),
+                                               context.axis[context.x1_ang_i]['idx'])
+            else:  # Y Down
+                context.zcontrollers.move_axis(int(context.axis[context.y1_line_i]['dir_bw']),
+                                               context.axis[context.y1_line_i]['idx'])
+        elif key_vk == 81:  # Q -  Z Up
+            if ctrl:  # Z Rotate
+                context.zcontrollers.move_axis(int(context.axis[context.z1_ang_i]['dir_fw']),
+                                               context.axis[context.z1_ang_i]['idx'])
+            else:
+                context.zcontrollers.move_axis(int(context.axis[context.z1_line_i]['dir_fw']),
+                                               context.axis[context.z1_line_i]['idx'])
+        elif key_vk == 90:  # Z -  Z Down
+            if not ctrl:
+                context.zcontrollers.move_axis(int(context.axis[context.z1_line_i]['dir_bw']),
+                                               context.axis[context.z1_line_i]['idx'])
+
+        elif ctrl and key_vk == 69:  # 'c' # Z CCW
+            context.zcontrollers.move_axis(int(context.axis[context.z1_ang_i]['dir_bw']),
+                                           context.axis[context.z1_ang_i]['idx'])
+    # Right platform
+    if not context.lock_right_side:
+        if key == keyboard.Key.left:
+            if ctrl:  # Y Rotate
+                context.zcontrollers.move_axis(int(context.axis[context.y2_ang_i]['dir_bw']),
+                                               context.axis[context.y2_ang_i]['idx'])
+            else:  # X Left
+                context.zcontrollers.move_axis(int(context.axis[context.x2_line_i]['dir_bw']),
+                                               context.axis[context.x2_line_i]['idx'])
+        elif key == keyboard.Key.right:
+            if ctrl:  # Y Rotate
+                context.zcontrollers.move_axis(int(context.axis[context.y2_ang_i]['dir_fw']),
+                                               context.axis[context.y2_ang_i]['idx'])
+            else:  # X Right
+                context.zcontrollers.move_axis(int(context.axis[context.x2_line_i]['dir_fw']),
+                                               context.axis[context.x2_line_i]['idx'])
+        elif key == keyboard.Key.up:
+            if ctrl:  # X Rotate
+                context.zcontrollers.move_axis(int(context.axis[context.x2_ang_i]['dir_fw']),
+                                               context.axis[context.x2_ang_i]['idx'])
+            else:  # Y Up
+                context.zcontrollers.move_axis(int(context.axis[context.y2_line_i]['dir_fw']),
+                                               context.axis[context.y2_line_i]['idx'])
+        elif key == keyboard.Key.down:  # Y Down
+            if ctrl:  # X Rotate
+                context.zcontrollers.move_axis(int(context.axis[context.x2_ang_i]['dir_bw']),
+                                               context.axis[context.x2_ang_i]['idx'])
+            else:  # Y Down
+                context.zcontrollers.move_axis(int(context.axis[context.y2_line_i]['dir_bw']),
+                                               context.axis[context.y2_line_i]['idx'])
+        elif key == keyboard.Key.home:  # Z Up
+            if ctrl:
+                context.zcontrollers.move_axis(int(context.axis[context.z2_ang_i]['dir_fw']),
+                                               context.axis[context.z2_ang_i]['idx'])
+            else:
+                context.zcontrollers.move_axis(int(context.axis[context.z2_line_i]['dir_fw']),
+                                               context.axis[context.z2_line_i]['idx'])
+        elif key == keyboard.Key.end:  # Z Down
+            if not ctrl:
+                context.zcontrollers.move_axis(int(context.axis[context.z2_line_i]['dir_bw']),
+                                               context.axis[context.z2_line_i]['idx'])
+        elif ctrl and key == keyboard.Key.page_up:  # NUM 9 # Z CCW
+            context.zcontrollers.move_axis(int(context.axis[context.z2_ang_i]['dir_bw']),
+                                           context.axis[context.z2_ang_i]['idx'])
+    # Table platform
+    if key_vk == 74:  # 'J'
+        if not ctrl:
+            context.zcontrollers.move_table(int(context.axis[context.y_table_i]['dir_fw']))
+    elif key_vk == 85:  # ('U')
+        if not ctrl:
+            context.zcontrollers.move_table(int(context.axis[context.y_table_i]['dir_bw']))
+
+
+def get_axis_params():
+    context.zcontrollers.get_axis_move_params(AXIS_L_X)
+    for i in range(0, 13, 1):
+        dpg.set_value(context.axis[i]['name'] + "Acc", context.axis[i]['acc'])
+        dpg.set_value(context.axis[i]['name'] + "Dec", context.axis[i]['dec'])
+
+
 class MotionGUI:
 
     def __init__(self):
+        self.pix_per_step = 500
+        self.get_pix_per_step = False
+        self.prev_x = None
         self.moving_right = False
         self.moving_z1 = False
         self.h1k = None
@@ -130,6 +245,7 @@ class MotionGUI:
         self.data_table = 0
         self.magnification = 5
         self.width_btn = 0
+
         self.height_btn = 0
         self.thread_proc = 0
         self.ctrl_pressed = False
@@ -139,9 +255,6 @@ class MotionGUI:
         self.angle2 = 0
         self.angle3 = 0
         self.angle4 = 0
-        # self.width_xyz, self.height_xyz, self.channels_xyz, self.data_xyz   = dpg.load_image("Pics//xyz.png")
-        # dpg.add_dynamic_texture(width=self.width_btn, height=self.height_btn, default_value=self.data_x_p, tag="texture_btn_"+context.axis[0]['name']+"P")
-        # "texture_btn_" + context.axis[0]['name'] + "P"
         self.buf_grab_image_size = 0
         self.stFrameInfo = MV_FRAME_OUT_INFO_EX()
         self.deviceList = MV_CC_DEVICE_INFO_LIST()
@@ -162,17 +275,18 @@ class MotionGUI:
         if ret_temp != MV_OK:
             return
         self.NeedBufSize = int(stPayloadSize.nCurValue)
-        self.val = 50
+        self.val = 45
         self.val2 = 7
-        self.threshold1 = 255 * 3.7
-        self.threshold2 = 255 * 3.8
-        self.rho = 1  # ui.rho.value()
-        self.theta = np.pi / 180 / 10  # ui.theta.value()
+        self.threshold1 = 255 * 3.5
+        self.threshold2 = 255 * 3.9
+        self.rho = 1
+        self.theta = np.pi / 180 / 10
         self.threshold = 200
         self.n_w, self.n_h = 5120, 5120
-        self.minLineLength = 0.6 / 100 * self.n_w * self.val / 100
-        self.maxLineGap = 100 / 100 * self.n_w * self.val / 100
-        self.c_x, self.c_y = int(self.n_w * self.val / 100 / 2), int(self.n_w * self.val / 100 / 2)
+        self.width = int(self.n_w * self.val / 100)
+        self.minLineLength = 10 / 100 * self.width
+        self.maxLineGap = 0.5 / 100 * self.width
+        self.c_x, self.c_y = int(self.width / 2), int(self.width / 2)
         self.mask = cv2.circle(np.zeros((int(5120 * self.val / 100), int(5120 * self.val / 100)), dtype="uint8"),
                                (self.c_x, self.c_y), self.c_x - 300, 255, -1)
         self.last_photo_taken = time.time()
@@ -181,11 +295,6 @@ class MotionGUI:
             self.buf_grab_image_size = self.NeedBufSize
         thread = threading.Thread(target=self.run_task, args=(), daemon=True)
         thread.start()
-        # self.mask = np.zeros((int(self.n_w * self.val / 100), int(self.n_w * self.val / 100)), dtype="uint8")
-        # cv2.circle(self.mask, (int(self.c_x * self.val / 100), int(self.c_y * self.val / 100)),
-        #            int(self.c_y * self.val / 100),
-        #            255, -1)
-        # self.obj_cam.MV_CC_GetOneFrameTimeout(self.buf_grab_image, self.buf_grab_image_size, self.stFrameInfo)
 
     def rotate_z(self, right):
         if right:
@@ -221,7 +330,7 @@ class MotionGUI:
 
                 print(delta)
                 print("move x")
-                context.zplatform.move(axis, delta * 8 * 445 / (self.magnification * self.val) - 10*8)
+                context.zplatform.move(axis, delta / self.pix_per_step - 10 * 8)
             else:
                 print("not connected")
 
@@ -229,121 +338,129 @@ class MotionGUI:
         self.moving_z1 = True
         self.moving_right = right
 
+    def set_pix_per_step(self, sender, app_data, user_data):
+        if self.prev_x is None:
+            self.prev_x = (self.v2b - self.v1b) / np.sqrt(self.v1k ** 2 + 1)
+            print("prev: ", self.prev_x)
+
+        else:
+            x = (self.v2b - self.v1b) / np.sqrt(self.v1k ** 2 + 1)
+            self.pix_per_step = np.abs(x - self.prev_x)/(8*200)
+            print("pix per step", self.pix_per_step)
+            self.prev_x = None
+
     def run_task(self):
-        width = self.n_w * self.val / 100
+
         while True:
-            # Camera
-            if time.time() - self.last_photo_taken > 0.3:
-                self.obj_cam.MV_CC_GetOneFrameTimeout(self.buf_grab_image, self.buf_grab_image_size, self.stFrameInfo)
-                self.last_photo_taken = time.time()
 
-                resized = resize_image(Mono_numpy(self.buf_grab_image, self.n_w, self.n_h), self.val)
-                # cv2.normalize(resized, resized, 0.0, 255.0, norm_type=cv2.NORM_MINMAX)
-                # resized = cv2.medianBlur(resized, self.val2)
-                resized = cv2.medianBlur(resized, self.val2)
-                # resized = cv2.Sobel(resized, cv2.CV_8U, 0, 1)
-                edges = cv2.Canny(resized, self.threshold1, self.threshold2, apertureSize=5, L2gradient=True)
-                edges &= self.mask
+            self.obj_cam.MV_CC_GetOneFrameTimeout(self.buf_grab_image, self.buf_grab_image_size, self.stFrameInfo)
 
-                final = cv2.cvtColor(resized, cv2.COLOR_GRAY2RGB)
-                R, G, B = cv2.split(final)
-                R = np.bitwise_or(edges, R)
-                G = np.bitwise_and(np.bitwise_not(edges), G)
-                B = np.bitwise_and(np.bitwise_not(edges), B)
-                final = cv2.merge([R, G, B])
-                if not self.fixed:
-                    self.lines_ = cv2.HoughLinesP(edges, self.rho, self.theta, self.threshold,
-                                                  minLineLength=self.minLineLength,
-                                                  maxLineGap=self.maxLineGap)
-                horizontal_1_x = []
-                horizontal_1_y = []
-                horizontal_2_x = []
-                horizontal_2_y = []
-                vertical_1_x = []
-                vertical_1_y = []
-                vertical_2_x = []
-                vertical_2_y = []
-                if self.lines_ is not None:
-                    if len(self.lines_) > 1:
-                        for line in self.lines_:
-                            line_ = line[0]
-                            k = get_k(line_)
-                            if abs(k) < 1:
-                                pass
-                                # if line_[1] < 0.5 * width and line_[3] < 0.5 * width:
-                                #     horizontal_1_x.append(line_[0])
-                                #     horizontal_1_y.append(line_[1])
-                                #     horizontal_1_x.append(line_[2])
-                                #     horizontal_1_y.append(line_[3])
-                                # else:
-                                #     horizontal_2_x.append(line_[0])
-                                #     horizontal_2_y.append(line_[1])
-                                #     horizontal_2_x.append(line_[2])
-                                #     horizontal_2_y.append(line_[3])
+            resized = resize_image(Mono_numpy(self.buf_grab_image, self.n_w, self.n_h), self.val)
+            final = cv2.cvtColor(resized, cv2.COLOR_GRAY2RGB)
+
+            if not self.fixed:
+                detector = cv2.ximgproc.createFastLineDetector(length_threshold=int(self.minLineLength), distance_threshold=int(self.maxLineGap),
+                                                               canny_th1=self.threshold1, canny_th2=self.threshold2, canny_aperture_size=7)
+                self.lines_ = detector.detect(resized)
+            vertical_1_x = []
+            vertical_1_y = []
+            vertical_2_x = []
+            vertical_2_y = []
+            horizontal_1_x = []
+            horizontal_1_y = []
+            horizontal_2_x = []
+            horizontal_2_y = []
+            if self.lines_ is not None:
+                if len(self.lines_) > 1:
+                    for line in self.lines_:
+                        line_ = line[0]
+
+                        if isHorizontal(line_):
+
+                            if line_[1] < self.c_x and line_[3] < self.c_x:
+                                horizontal_1_x.append(line_[0])
+                                horizontal_1_y.append(line_[1])
+                                horizontal_1_x.append(line_[2])
+                                horizontal_1_y.append(line_[3])
                             else:
-                                if line_[0] < 0.5 * width and line_[2] < 0.5 * width:
-                                    vertical_1_x.append(line_[0])
-                                    vertical_1_y.append(line_[1])
-                                    vertical_1_x.append(line_[2])
-                                    vertical_1_y.append(line_[3])
-                                else:
-                                    vertical_2_x.append(line_[0])
-                                    vertical_2_y.append(line_[1])
-                                    vertical_2_x.append(line_[2])
-                                    vertical_2_y.append(line_[3])
-
-                # if len(horizontal_1_x) > 0:
-                #     m, b = np.polyfit(horizontal_1_x, horizontal_1_y, 1)
-                #     self.angle3 = np.atan(m) * 180 / np.pi
-                #     cv2.line(final, (0, int(get_y(0, m, b))),
-                #              (int(width), int(get_y(int(width), m, b))),
-                #              (0, 0, 255),
-                #              int(0.1 * self.val))
-                #     self.h1b = b
-                #     self.h1k = m
-                # if len(horizontal_2_x) > 0:
-                #     m, b = np.polyfit(horizontal_2_x, horizontal_2_y, 1)
-                #     self.angle4 = np.atan(m) * 180 / np.pi
-                #     cv2.line(final, (0, int(get_y(0, m, b))),
-                #              (int(width), int(get_y(int(width), m, b))),
-                #              (0, 0, 255),
-                #              int(0.1 * self.val))
-                #     self.h2b = b
-                #     self.h2k = m
-                if len(vertical_1_x) > 0:
-                    m, b = np.polyfit(vertical_1_y, vertical_1_x, 1)
-                    self.angle1 = np.atan(m) * 180 / np.pi
-                    cv2.line(final, (int(get_y(0, m, b)), 0),
-                             (int(get_y(int(width), m, b)), int(width)),
-                             (0, 255, 0),
-                             int(0.1 * self.val))
-                    self.v1b = b
-                    self.v1k = m
-                if len(vertical_2_x) > 0:
-                    m, b = np.polyfit(vertical_2_y, vertical_2_x, 1)
-                    self.angle2 = np.atan(m) * 180 / np.pi
-                    cv2.line(final, (int(get_y(0, m, b)), 0),
-                             (int(get_y(int(width), m, b)), int(width)),
-                             (0, 255, 0),
-                             int(0.1 * self.val))
-                    self.v2b = b
-                    self.v2k = m
-
-                if self.moving_z1:
-                    if self.moving_right:
-                        if len(vertical_2_x) < 1:
-                            move_z_1(self.moving_right)
+                                horizontal_2_x.append(line_[0])
+                                horizontal_2_y.append(line_[1])
+                                horizontal_2_x.append(line_[2])
+                                horizontal_2_y.append(line_[3])
                         else:
-                            self.moving_z1 = False
+                            if line_[0] < self.c_x and line_[2] < self.c_x:
+                                vertical_1_x.append(line_[0])
+                                vertical_1_y.append(line_[1])
+                                vertical_1_x.append(line_[2])
+                                vertical_1_y.append(line_[3])
+                            else:
+                                vertical_2_x.append(line_[0])
+                                vertical_2_y.append(line_[1])
+                                vertical_2_x.append(line_[2])
+                                vertical_2_y.append(line_[3])
+
+            # if len(horizontal_1_x) > 0:
+            #     m, b = np.polyfit(horizontal_1_x, horizontal_1_y, 1)
+            #     self.angle3 = np.atan(m) * 180 / np.pi
+            #     cv2.line(final, (0, int(get_y(0, m, b))),
+            #              (int(width), int(get_y(int(width), m, b))),
+            #              (0, 0, 255),
+            #              int(0.1 * self.val))
+            #     self.h1b = b
+            #     self.h1k = m
+            # if len(horizontal_2_x) > 0:
+            #     m, b = np.polyfit(horizontal_2_x, horizontal_2_y, 1)
+            #     self.angle4 = np.atan(m) * 180 / np.pi
+            #     cv2.line(final, (0, int(get_y(0, m, b))),
+            #              (int(width), int(get_y(int(width), m, b))),
+            #              (0, 0, 255),
+            #              int(0.1 * self.val))
+            #     self.h2b = b
+            #     self.h2k = m
+
+            if len(vertical_1_x) > 0:
+                m, b = np.polyfit(vertical_1_y, vertical_1_x, 1)
+                self.angle1 = np.atan(m) * 180 / np.pi
+                cv2.line(final, (int(get_y(0, m, b)), 0),
+                         (int(get_y(int(self.width), m, b)), int(self.width)),
+                         (0, 255, 0),
+                         int(0.1 * self.val))
+                self.v1b = b
+                self.v1k = m
+            if len(vertical_2_x) > 0:
+                m, b = np.polyfit(vertical_2_y, vertical_2_x, 1)
+                self.angle2 = np.atan(m) * 180 / np.pi
+                cv2.line(final, (int(get_y(0, m, b)), 0),
+                         (int(get_y(int(self.width), m, b)), int(self.width)),
+                         (0, 255, 0),
+                         int(0.1 * self.val))
+                self.v2b = b
+                self.v2k = m
+            for i in range(0, len(horizontal_1_x), 2):
+                cv2.line(final, (int(horizontal_1_x[i]), int(horizontal_1_y[i])),
+                         (int(horizontal_1_x[i+1]), int(horizontal_1_y[i+1])),
+                         (255,0,0), int(0.1 * self.val))
+            for i in range(0, len(horizontal_2_x), 2):
+                cv2.line(final, (int(horizontal_2_x[i]), int(horizontal_2_y[i])),
+                         (int(horizontal_2_x[i + 1]), int(horizontal_2_y[i + 1])),
+                         (255, 0, 0), int(0.1 * self.val))
+
+            if self.moving_z1:
+                if self.moving_right:
+                    if len(vertical_2_x) < 1:
+                        move_z_1(self.moving_right)
                     else:
-                        if len(vertical_1_x) < 1:
-                            move_z_1(self.moving_right)
-                        else:
-                            self.moving_z1 = False
+                        self.moving_z1 = False
+                else:
+                    if len(vertical_1_x) < 1:
+                        move_z_1(self.moving_right)
+                    else:
+                        self.moving_z1 = False
 
-                display_img("camera_1", cv2.resize(final, (400, 400), interpolation=cv2.INTER_AREA))
+            display_img("camera_1", cv2.resize(final, (400, 400), interpolation=cv2.INTER_AREA))
 
-    def loop(self):
+    @staticmethod
+    def loop():
         if context.zplatform.state_changed & 1:
             context.zplatform.state_changed &= 0xFE
             if context.zplatform.is_connected:
@@ -468,116 +585,6 @@ class MotionGUI:
             if context.zcontrollers.connect_table():
                 context.gui_hlp.set_conn_states("table_ctrl_state", "table_conn_btn", 2)
 
-    def get_axis_params(self):
-        context.zcontrollers.get_axis_move_params(AXIS_L_X)
-        for i in range(0, 13, 1):
-            dpg.set_value(context.axis[i]['name'] + "Acc", context.axis[i]['acc'])
-            dpg.set_value(context.axis[i]['name'] + "Dec", context.axis[i]['dec'])
-
-    def movement_by_keys(self, key_vk, key, ctrl, alt):
-        if not ctrl and not alt:
-            return
-        #        for editor in context.editor_list:
-        #            if dpg.is_item_focused(editor):
-        #                return
-        # Left platform
-        if not context.lock_left_side:
-            if key_vk == 65:  # A
-                if ctrl:  # Y Rotate
-                    context.zcontrollers.move_axis(int(context.axis[context.y1_ang_i]['dir_bw']),
-                                                   context.axis[context.y1_ang_i]['idx'])
-                else:  # X Left
-                    context.zcontrollers.move_axis(int(context.axis[context.x1_line_i]['dir_bw']),
-                                                   context.axis[context.x1_line_i]['idx'])
-            elif key_vk == 68:  # D
-                if ctrl:  # Y Rotate
-                    context.zcontrollers.move_axis(int(context.axis[context.y1_ang_i]['dir_fw']),
-                                                   context.axis[context.y1_ang_i]['idx'])
-                else:  # X Right
-                    context.zcontrollers.move_axis(int(context.axis[context.x1_line_i]['dir_fw']),
-                                                   context.axis[context.x1_line_i]['idx'])
-
-            elif key_vk == 87:  # W
-                if ctrl:  # # X Rotate
-                    context.zcontrollers.move_axis(int(context.axis[context.x1_ang_i]['dir_fw']),
-                                                   context.axis[context.x1_ang_i]['idx'])
-                else:  # Y Up
-                    context.zcontrollers.move_axis(int(context.axis[context.y1_line_i]['dir_fw']),
-                                                   context.axis[context.y1_line_i]['idx'])
-            elif key_vk == 83:  # S
-                if ctrl:  # X Rotate
-                    context.zcontrollers.move_axis(int(context.axis[context.x1_ang_i]['dir_bw']),
-                                                   context.axis[context.x1_ang_i]['idx'])
-                else:  # Y Down
-                    context.zcontrollers.move_axis(int(context.axis[context.y1_line_i]['dir_bw']),
-                                                   context.axis[context.y1_line_i]['idx'])
-            elif key_vk == 81:  # Q -  Z Up
-                if ctrl:  # Z Rotate
-                    context.zcontrollers.move_axis(int(context.axis[context.z1_ang_i]['dir_fw']),
-                                                   context.axis[context.z1_ang_i]['idx'])
-                else:
-                    context.zcontrollers.move_axis(int(context.axis[context.z1_line_i]['dir_fw']),
-                                                   context.axis[context.z1_line_i]['idx'])
-            elif key_vk == 90:  # Z -  Z Down
-                if not ctrl:
-                    context.zcontrollers.move_axis(int(context.axis[context.z1_line_i]['dir_bw']),
-                                                   context.axis[context.z1_line_i]['idx'])
-
-            elif ctrl and key_vk == 69:  # 'c' # Z CCW
-                context.zcontrollers.move_axis(int(context.axis[context.z1_ang_i]['dir_bw']),
-                                               context.axis[context.z1_ang_i]['idx'])
-        # Right platform
-        if not context.lock_right_side:
-            if key == keyboard.Key.left:
-                if ctrl:  # Y Rotate
-                    context.zcontrollers.move_axis(int(context.axis[context.y2_ang_i]['dir_bw']),
-                                                   context.axis[context.y2_ang_i]['idx'])
-                else:  # X Left
-                    context.zcontrollers.move_axis(int(context.axis[context.x2_line_i]['dir_bw']),
-                                                   context.axis[context.x2_line_i]['idx'])
-            elif key == keyboard.Key.right:
-                if ctrl:  # Y Rotate
-                    context.zcontrollers.move_axis(int(context.axis[context.y2_ang_i]['dir_fw']),
-                                                   context.axis[context.y2_ang_i]['idx'])
-                else:  # X Right
-                    context.zcontrollers.move_axis(int(context.axis[context.x2_line_i]['dir_fw']),
-                                                   context.axis[context.x2_line_i]['idx'])
-            elif key == keyboard.Key.up:
-                if ctrl:  # X Rotate
-                    context.zcontrollers.move_axis(int(context.axis[context.x2_ang_i]['dir_fw']),
-                                                   context.axis[context.x2_ang_i]['idx'])
-                else:  # Y Up
-                    context.zcontrollers.move_axis(int(context.axis[context.y2_line_i]['dir_fw']),
-                                                   context.axis[context.y2_line_i]['idx'])
-            elif key == keyboard.Key.down:  # Y Down
-                if ctrl:  # X Rotate
-                    context.zcontrollers.move_axis(int(context.axis[context.x2_ang_i]['dir_bw']),
-                                                   context.axis[context.x2_ang_i]['idx'])
-                else:  # Y Down
-                    context.zcontrollers.move_axis(int(context.axis[context.y2_line_i]['dir_bw']),
-                                                   context.axis[context.y2_line_i]['idx'])
-            elif key == keyboard.Key.home:  # # Z Up
-                if ctrl:
-                    context.zcontrollers.move_axis(int(context.axis[context.z2_ang_i]['dir_fw']),
-                                                   context.axis[context.z2_ang_i]['idx'])
-                else:
-                    context.zcontrollers.move_axis(int(context.axis[context.z2_line_i]['dir_fw']),
-                                                   context.axis[context.z2_line_i]['idx'])
-            elif key == keyboard.Key.end:  # # Z Down
-                if not ctrl:
-                    context.zcontrollers.move_axis(int(context.axis[context.z2_line_i]['dir_bw']),
-                                                   context.axis[context.z2_line_i]['idx'])
-            elif ctrl and key == keyboard.Key.page_up:  # NUM 9 # Z CCW
-                context.zcontrollers.move_axis(int(context.axis[context.z2_ang_i]['dir_bw']),
-                                               context.axis[context.z2_ang_i]['idx'])
-        # # Table platform
-        if key_vk == 74:  # 'J'
-            if not ctrl:
-                context.zcontrollers.move_table(int(context.axis[context.y_table_i]['dir_fw']))
-        elif key_vk == 85:  # ('U')
-            if not ctrl:
-                context.zcontrollers.move_table(int(context.axis[context.y_table_i]['dir_bw']))
-
     def on_key_down_callback(self, key):
         if context.current_axis != -1:
             return
@@ -588,7 +595,7 @@ class MotionGUI:
         if key == keyboard.Key.ctrl_r or key == keyboard.Key.ctrl_l or key == keyboard.Key.ctrl:
             self.ctrl_pressed = True
 
-        # # Show hotkeys
+        # Show hotkeys
         elif key == keyboard.Key.alt_l or key == keyboard.Key.alt_r or key == keyboard.Key.alt or key == keyboard.Key.alt_gr:
             self.alt_pressed = True
             for i in range(0, 26):
@@ -598,7 +605,7 @@ class MotionGUI:
                 key_vk = key.vk
             else:
                 key_vk = 0
-            self.movement_by_keys(key_vk, key, self.ctrl_pressed, self.alt_pressed)
+            movement_by_keys(key_vk, key, self.ctrl_pressed, self.alt_pressed)
 
     def on_key_release_callback(self, key):
         #        context.logger.log('Released')
@@ -673,13 +680,6 @@ class MotionGUI:
             context.current_axis = -1
             return
 
-    #        dpg.delete_item("msg_window", slot=1)
-
-    def set_pix_per_100(self, sender, app_data, user_data):
-        magnification = dpg.get_value("EditPixPer100")
-        # magnification = re.sub(r'\D', '', magnification)
-        if magnification.isdigit():
-            self.magnification = float(magnification)
 
     def init_manual_page(self):
         context.positions.add_pos_window()
@@ -696,11 +696,7 @@ class MotionGUI:
                 dpg.add_text("Z2")
                 dpg.add_text("Y")
             with dpg.group(horizontal=False):
-                with dpg.group(horizontal=True):
-                    dpg.add_text("Увеличение х")
-                    dpg.add_input_text(label="", tag="EditPixPer100", decimal=True, default_value=str(self.magnification),
-                                       width=50,
-                                       callback=self.set_pix_per_100)
+                dpg.add_button(label="Калибровать увеличение", callback=self.set_pix_per_step)
                 dpg.add_image('camera_1')
             with dpg.group(horizontal=False):
                 dpg.add_text("Правая платформа")
@@ -714,8 +710,7 @@ class MotionGUI:
         ret_temp = self.obj_cam.MV_CC_GetIntValueEx("PayloadSize", stPayloadSize)
         if ret_temp != MV_OK:
             return
-        # dpg.add_button(label="Подключить", pos=(x_, 223 + top_margin+201), callback=lambda sender, app_data: camera_connect(sender, app_data, 0))
-        # LEFT PLATFORM BUTTONS
+
         dpg.add_image_button(context.axis[0]['txt_p'], pos=(494 + left_margin, 223 + top_margin),
                              tag=context.axis[0]['name'] + 'bnt_p')  # X линейное +
         dpg.add_image_button(context.axis[0]['txt_m'], pos=(314 + left_margin, 223 + top_margin),
@@ -851,12 +846,6 @@ class MotionGUI:
                 dpg.add_button(label=txt.INIT_PLATFORM_BTN, height=40, width=200,
                                callback=self.btn_init_plaform_click, tag="btn_init_platform")
                 context.gui_hlp.setBtnEnabled("btn_init_platform", True)
-            #                dpg.add_spacer(width=10)
-            #                dpg.add_button(label=txt.SET_PRESET_BTN, height=40, width=200,
-            #                               callback=self.btn_set_zero_click, tag="btn_set_as_zero")
-            #                dpg.add_spacer(width=10)
-            #                dpg.add_button(label=txt.MOVE_TO_PRESET_BTN, height=40, width=200,
-            #                               callback=self.btn_move_to_zero_click, tag="btn_goto_zero")
             context.gui_hlp.init_platforms_complete(False)
             # Управления скоростью и шагом
         with dpg.group(pos=(600, 480)):
@@ -971,10 +960,6 @@ class MotionGUI:
 
         dpg.add_raw_texture(width=400, height=400, default_value=[0.0] * 400 * 400 * 3,
                             tag="camera_1", format=dpg.mvFormat_Float_rgb)
-        # dpg.add_raw_texture(width=400, height=400, default_value=[0.0]*400*400*3,
-        #                     tag="camera_2", format=dpg.mvFormat_Float_rgb)
-
-        # dpg.add_raw_texture(width=400, height=400, default_value=np.zeros((400,400,3), dtype=np.float32), tag="camera_2", format=dpg.mvFormat_Float_rgb)
         dpg.pop_container_stack()
 
 
