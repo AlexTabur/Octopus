@@ -1,7 +1,6 @@
 import threading
 from threading import Timer
 
-import cv2
 from pynput import keyboard
 from win32gui import GetWindowText, GetForegroundWindow
 
@@ -84,14 +83,33 @@ def set_speed_value(speed: int):
     save_prameters()
 
 
+def move_z_1(right):
+    if right:
+        axis = context.axis[context.z2_line_i]['idx']
+    else:
+        axis = context.axis[context.z1_line_i]['idx']
+    if axis != -1:
+        context.current_axis = axis
+        if context.zplatform.is_connected:
+            # print("moving on axis = ", abs(context.current_axis))
+            context.zplatform.move(axis, 100)
+        else:
+            print("not connected")
+
+
 class MotionGUI:
 
     def __init__(self):
-        self.mask = None
-        self.k1 = None
-        self.k2 = None
-        self.b1 = None
-        self.b2 = None
+        self.moving_right = False
+        self.moving_z1 = False
+        self.h1k = None
+        self.h2k = None
+        self.v1k = None
+        self.v2k = None
+        self.h1b = None
+        self.h2b = None
+        self.v1b = None
+        self.v2b = None
         self.fixed = False
         self.lines_ = []
         self.buf_grab_image = None
@@ -110,7 +128,7 @@ class MotionGUI:
         self.width_table = 0
         self.height_table = 0
         self.data_table = 0
-        self.pixelsPer100u = 17
+        self.magnification = 5
         self.width_btn = 0
         self.height_btn = 0
         self.thread_proc = 0
@@ -119,7 +137,8 @@ class MotionGUI:
         self.buf_save_image = None
         self.angle1 = 0
         self.angle2 = 0
-
+        self.angle3 = 0
+        self.angle4 = 0
         # self.width_xyz, self.height_xyz, self.channels_xyz, self.data_xyz   = dpg.load_image("Pics//xyz.png")
         # dpg.add_dynamic_texture(width=self.width_btn, height=self.height_btn, default_value=self.data_x_p, tag="texture_btn_"+context.axis[0]['name']+"P")
         # "texture_btn_" + context.axis[0]['name'] + "P"
@@ -143,10 +162,10 @@ class MotionGUI:
         if ret_temp != MV_OK:
             return
         self.NeedBufSize = int(stPayloadSize.nCurValue)
-        self.val = 40
+        self.val = 50
         self.val2 = 7
-        self.threshold1 = 10
-        self.threshold2 = 250
+        self.threshold1 = 255 * 3.7
+        self.threshold2 = 255 * 3.8
         self.rho = 1  # ui.rho.value()
         self.theta = np.pi / 180 / 10  # ui.theta.value()
         self.threshold = 200
@@ -154,7 +173,8 @@ class MotionGUI:
         self.minLineLength = 0.6 / 100 * self.n_w * self.val / 100
         self.maxLineGap = 100 / 100 * self.n_w * self.val / 100
         self.c_x, self.c_y = int(self.n_w * self.val / 100 / 2), int(self.n_w * self.val / 100 / 2)
-        self.mask = cv2.circle(np.zeros((2048, 2048), dtype="uint8"), (self.c_x, self.c_y), self.c_x - 300, 255, -1)
+        self.mask = cv2.circle(np.zeros((int(5120 * self.val / 100), int(5120 * self.val / 100)), dtype="uint8"),
+                               (self.c_x, self.c_y), self.c_x - 300, 255, -1)
         self.last_photo_taken = time.time()
         if self.buf_grab_image_size < self.NeedBufSize:
             self.buf_grab_image = (self.NeedBufSize * ctypes.c_ubyte)()
@@ -188,7 +208,8 @@ class MotionGUI:
                 print("not connected")
 
     def move_x(self, right):
-        delta = (self.b2 - self.b1) / np.sqrt(self.k1 ** 2 + 1)
+        print("move x")
+        delta = (self.v2b - self.v1b) / np.sqrt(self.v1k ** 2 + 1)
         if right:
             axis = context.axis[context.x2_line_i]['idx']
         else:
@@ -199,12 +220,17 @@ class MotionGUI:
                 # print("moving on axis = ", abs(context.current_axis))
 
                 print(delta)
-                # 9.2*magnification
-                context.zplatform.move(axis, delta * 8 * 100 / int(self.pixelsPer100u))
+                print("move x")
+                context.zplatform.move(axis, delta * 8 * 445 / (self.magnification * self.val) - 10*8)
             else:
                 print("not connected")
 
+    def move_z1(self, right):
+        self.moving_z1 = True
+        self.moving_right = right
+
     def run_task(self):
+        width = self.n_w * self.val / 100
         while True:
             # Camera
             if time.time() - self.last_photo_taken > 0.3:
@@ -212,66 +238,110 @@ class MotionGUI:
                 self.last_photo_taken = time.time()
 
                 resized = resize_image(Mono_numpy(self.buf_grab_image, self.n_w, self.n_h), self.val)
-                resized = cv2.transpose(cv2.flip(resized, flipCode=1))
-                cv2.normalize(resized, resized, 0.0, 255.0, norm_type=cv2.NORM_MINMAX)
-                #resized = cv2.medianBlur(resized, self.val2)
+                # cv2.normalize(resized, resized, 0.0, 255.0, norm_type=cv2.NORM_MINMAX)
+                # resized = cv2.medianBlur(resized, self.val2)
                 resized = cv2.medianBlur(resized, self.val2)
                 # resized = cv2.Sobel(resized, cv2.CV_8U, 0, 1)
                 edges = cv2.Canny(resized, self.threshold1, self.threshold2, apertureSize=5, L2gradient=True)
                 edges &= self.mask
 
                 final = cv2.cvtColor(resized, cv2.COLOR_GRAY2RGB)
+                R, G, B = cv2.split(final)
+                R = np.bitwise_or(edges, R)
+                G = np.bitwise_and(np.bitwise_not(edges), G)
+                B = np.bitwise_and(np.bitwise_not(edges), B)
+                final = cv2.merge([R, G, B])
                 if not self.fixed:
                     self.lines_ = cv2.HoughLinesP(edges, self.rho, self.theta, self.threshold,
                                                   minLineLength=self.minLineLength,
                                                   maxLineGap=self.maxLineGap)
-                lines_2_x = []
-                lines_2_y = []
-                lines_3_x = []
-                lines_3_y = []
+                horizontal_1_x = []
+                horizontal_1_y = []
+                horizontal_2_x = []
+                horizontal_2_y = []
+                vertical_1_x = []
+                vertical_1_y = []
+                vertical_2_x = []
+                vertical_2_y = []
                 if self.lines_ is not None:
                     if len(self.lines_) > 1:
                         for line in self.lines_:
-                            k = get_k(line[0])
+                            line_ = line[0]
+                            k = get_k(line_)
                             if abs(k) < 1:
-                                line_ = line[0]
-                                if line_[1] < self.n_w * 0.5 * self.val / 100 and line_[
-                                    3] < self.n_w * 0.5 * self.val / 100:
-                                    lines_2_x.append(line_[0])
-                                    lines_2_y.append(line_[1])
-                                    lines_2_x.append(line_[2])
-                                    lines_2_y.append(line_[3])
+                                pass
+                                # if line_[1] < 0.5 * width and line_[3] < 0.5 * width:
+                                #     horizontal_1_x.append(line_[0])
+                                #     horizontal_1_y.append(line_[1])
+                                #     horizontal_1_x.append(line_[2])
+                                #     horizontal_1_y.append(line_[3])
+                                # else:
+                                #     horizontal_2_x.append(line_[0])
+                                #     horizontal_2_y.append(line_[1])
+                                #     horizontal_2_x.append(line_[2])
+                                #     horizontal_2_y.append(line_[3])
+                            else:
+                                if line_[0] < 0.5 * width and line_[2] < 0.5 * width:
+                                    vertical_1_x.append(line_[0])
+                                    vertical_1_y.append(line_[1])
+                                    vertical_1_x.append(line_[2])
+                                    vertical_1_y.append(line_[3])
                                 else:
-                                    lines_3_x.append(line_[0])
-                                    lines_3_y.append(line_[1])
-                                    lines_3_x.append(line_[2])
-                                    lines_3_y.append(line_[3])
+                                    vertical_2_x.append(line_[0])
+                                    vertical_2_y.append(line_[1])
+                                    vertical_2_x.append(line_[2])
+                                    vertical_2_y.append(line_[3])
 
-                if len(lines_2_x) > 0:
-                    m, b = np.polyfit(lines_2_x, lines_2_y, 1)
+                # if len(horizontal_1_x) > 0:
+                #     m, b = np.polyfit(horizontal_1_x, horizontal_1_y, 1)
+                #     self.angle3 = np.atan(m) * 180 / np.pi
+                #     cv2.line(final, (0, int(get_y(0, m, b))),
+                #              (int(width), int(get_y(int(width), m, b))),
+                #              (0, 0, 255),
+                #              int(0.1 * self.val))
+                #     self.h1b = b
+                #     self.h1k = m
+                # if len(horizontal_2_x) > 0:
+                #     m, b = np.polyfit(horizontal_2_x, horizontal_2_y, 1)
+                #     self.angle4 = np.atan(m) * 180 / np.pi
+                #     cv2.line(final, (0, int(get_y(0, m, b))),
+                #              (int(width), int(get_y(int(width), m, b))),
+                #              (0, 0, 255),
+                #              int(0.1 * self.val))
+                #     self.h2b = b
+                #     self.h2k = m
+                if len(vertical_1_x) > 0:
+                    m, b = np.polyfit(vertical_1_y, vertical_1_x, 1)
                     self.angle1 = np.atan(m) * 180 / np.pi
-                    cv2.line(final, (0, int(get_y(0, m, b))),
-                             (int(self.n_w * self.val), int(get_y(int(self.n_w * self.val), m, b))),
+                    cv2.line(final, (int(get_y(0, m, b)), 0),
+                             (int(get_y(int(width), m, b)), int(width)),
                              (0, 255, 0),
                              int(0.1 * self.val))
-                    self.b1 = b
-                    self.k1 = m
-                    print(1, self.b1, self.k1)
-                if len(lines_3_x) > 0:
-                    m, b = np.polyfit(lines_3_x, lines_3_y, 1)
+                    self.v1b = b
+                    self.v1k = m
+                if len(vertical_2_x) > 0:
+                    m, b = np.polyfit(vertical_2_y, vertical_2_x, 1)
                     self.angle2 = np.atan(m) * 180 / np.pi
-                    cv2.line(final, (0, int(get_y(0, m, b))),
-                             (int(self.n_w * self.val), int(get_y(int(self.n_w * self.val), m, b))),
+                    cv2.line(final, (int(get_y(0, m, b)), 0),
+                             (int(get_y(int(width), m, b)), int(width)),
                              (0, 255, 0),
                              int(0.1 * self.val))
-                    self.b2 = b
-                    self.k2 = m
-                    print(2, self.b2, self.k2)
-                # display_img("camera_2",
-                #             cv2.resize(cv2.flip(cv2.cvtColor(cv2.transpose(edges), cv2.COLOR_GRAY2RGB), flipCode=1),
-                #                        (400, 400)))
-                display_img("camera_1", cv2.resize(cv2.flip(cv2.transpose(final), flipCode=1), (400, 400)))
-                # cv2.imshow("img", edges)
+                    self.v2b = b
+                    self.v2k = m
+
+                if self.moving_z1:
+                    if self.moving_right:
+                        if len(vertical_2_x) < 1:
+                            move_z_1(self.moving_right)
+                        else:
+                            self.moving_z1 = False
+                    else:
+                        if len(vertical_1_x) < 1:
+                            move_z_1(self.moving_right)
+                        else:
+                            self.moving_z1 = False
+
+                display_img("camera_1", cv2.resize(final, (400, 400), interpolation=cv2.INTER_AREA))
 
     def loop(self):
         if context.zplatform.state_changed & 1:
@@ -606,40 +676,39 @@ class MotionGUI:
     #        dpg.delete_item("msg_window", slot=1)
 
     def set_pix_per_100(self, sender, app_data, user_data):
-        speed = dpg.get_value("EditPixPer100")
-        speed = re.sub(r'\D', '', speed)
-        if speed.isdigit():
-            self.pixelsPer100u = int(speed)
+        magnification = dpg.get_value("EditPixPer100")
+        # magnification = re.sub(r'\D', '', magnification)
+        if magnification.isdigit():
+            self.magnification = float(magnification)
 
     def init_manual_page(self):
-        # )
         context.positions.add_pos_window()
-
-        # dpg.add_input_text(label="", tag="EditAccX", decimal=True, default_value="0", width=50)
-        # dpg.add_input_text(label="", tag="EditDecX", decimal=True, default_value="0", width=50)
         top_margin = 70
         left_margin = 100
         dpg.add_image('texture_xy', pos=(400 + left_margin, 223 + top_margin))
         dpg.add_image('texture_z', pos=(89 + left_margin, 223 + top_margin))
-        cam_marg = left_margin + 1200
-        cam_marg_y = top_margin + 200
-        dpg.add_image('camera_1', pos=(cam_marg, top_margin))
-        # dpg.add_image('camera_2', pos=(left_margin + 1500, top_margin))
-        dpg.add_button(label="rotate left", pos=(cam_marg - 150, cam_marg_y),
-                       callback=lambda: self.rotate_z(False))
-        dpg.add_button(label="rotate right", pos=(cam_marg + 400, cam_marg_y),
-                       callback=lambda: self.rotate_z(True))
-        dpg.add_button(label="move left", pos=(cam_marg - 150, cam_marg_y + 50),
-                       callback=lambda: self.move_x(False))
-        dpg.add_button(label="move right", pos=(cam_marg + 400, cam_marg_y + 50),
-                       callback=lambda: self.move_x(True))
-        with dpg.group(pos=(cam_marg, cam_marg_y + 200), horizontal=True):
-            dpg.add_text("Пикселей в 100мкм")
-            dpg.add_input_text(label="", tag="EditPixPer100", decimal=True, default_value="17", width=50,
-                               callback=self.set_pix_per_100)
-        # dpg.add_image('camera_2', pos=(x_, 223 + top_margin))
-        # dpg.add_button(label="Начать", pos=(x_, -23 + top_margin+201), callback=lambda sender, app_data: camera_connect(sender, app_data, 0))
-        # stOutFrame = MV_FRAME_OUT()
+        with dpg.group(pos=(left_margin + 100, top_margin + 500), horizontal=True):
+            with dpg.group(horizontal=False):
+                dpg.add_text("Левая платформа")
+                dpg.add_button(label="Z1", callback=lambda: self.move_z1(False))
+                dpg.add_button(label="Рыскание", callback=lambda: self.rotate_z(False))
+                dpg.add_button(label="X", callback=lambda: self.move_x(False))
+                dpg.add_text("Z2")
+                dpg.add_text("Y")
+            with dpg.group(horizontal=False):
+                with dpg.group(horizontal=True):
+                    dpg.add_text("Увеличение х")
+                    dpg.add_input_text(label="", tag="EditPixPer100", decimal=True, default_value=str(self.magnification),
+                                       width=50,
+                                       callback=self.set_pix_per_100)
+                dpg.add_image('camera_1')
+            with dpg.group(horizontal=False):
+                dpg.add_text("Правая платформа")
+                dpg.add_button(label="Z1", callback=lambda: self.move_z1(True))
+                dpg.add_button(label="Рыскание", callback=lambda: self.rotate_z(True))
+                dpg.add_button(label="X", callback=lambda: self.move_x(True))
+                dpg.add_text("Z2")
+                dpg.add_text("Y")
 
         stPayloadSize = MVCC_INTVALUE_EX()
         ret_temp = self.obj_cam.MV_CC_GetIntValueEx("PayloadSize", stPayloadSize)

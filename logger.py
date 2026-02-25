@@ -1,24 +1,29 @@
 import dearpygui.dearpygui as dpg
+import core.texts as txt
+from core.texts import *
+from core.utils import *
 
 filt_items = ["COMMON", "COMMUNICATION", "WARNING", "ERROR", "CRITICAL"]
+context = Context()
 
 
 class Logger:
 
-    def __init__(self, parent=None, w_width=1, w_heigth=1, w_x=0, w_y=1):
+    def __init__(self):
         self.log_level = 0
         self.filter = 0xf
         self._auto_scroll = True
         self.filter_id = None
-        if parent:
-            self.window_id = parent
-        else:
-            self.window_id = dpg.add_window(label="Log", pos=(w_x, w_y), width=500, height=500,
-                                            no_close=True, no_collapse=True, autosize=True)
+        # if parent:
+        #     self.window_id = parent
+        # else:
+        #     self.window_id = dpg.add_window(label="Log", pos=(w_x, w_y), width=500, height=500,
+        #                                     no_close=True, no_collapse=True, autosize=True)
         self.count = 0
         self.flush_count = 1000
 
-        with dpg.group(horizontal=True, parent=self.window_id):
+    def init_logger(self):
+        with dpg.group(horizontal=True):
             with dpg.group():
                 with dpg.group(horizontal=True):
                     dpg.add_checkbox(label="Auto-scroll", default_value=True,
@@ -143,3 +148,6 @@ class Logger:
                 flt += ",[" + fstr + "]"
         dpg.set_value(self.filter_id, flt)
         # self.log_level
+
+
+context.logger = Logger()
