@@ -10,7 +10,7 @@ import axis_ctrl
 from camera.CameraParams_header import *
 from camera.MvCameraControl_class import *
 from camera.MvErrorDefine_const import *
-from camera.scratch import get_y, resize_image, Mono_numpy, display_img, isHorizontal
+from camera.scratch import get_y, Mono_numpy, display_img, isHorizontal
 from core.gui_helper import *
 from core.utils import *
 
@@ -83,20 +83,6 @@ def set_speed_value(speed: int):
     context.zcontrollers.set_platforms_speed(speed)  # установка скорости на все оси платформы
     context.zcontrollers.set_table_speed(speed)  # установка скорости на все оси платформы
     save_prameters()
-
-
-def move_z_1(right, dz):
-    if right:
-        axis = context.axis[context.z2_line_i]['idx']
-    else:
-        axis = context.axis[context.z1_line_i]['idx']
-    if axis != -1:
-        context.current_axis = axis
-        if context.zplatform.is_connected:
-            # print("moving on axis = ", abs(context.current_axis))
-            context.zplatform.move(axis, dz * 8)
-        else:
-            print("not connected")
 
 
 def movement_by_keys(key_vk, key, ctrl, alt):
@@ -290,11 +276,8 @@ class MotionGUI:
         self.NeedBufSize = int(stPayloadSize.nCurValue)
         self.val = 100
         self.val2 = 3
-        self.threshold1 = 255 * 3.7
-        self.threshold2 = 255 * 3.9
-        self.rho = 300
+        self.rho = 400
         self.theta = np.pi / 180
-        self.threshold = 200
         self.n_w, self.n_h = 5120, 5120
         self.width = int(self.n_w * self.val / 100)
         self.minLineLength = 10 / 100 * self.width
@@ -309,6 +292,19 @@ class MotionGUI:
         thread = threading.Thread(target=self.run_task, args=(), daemon=True)
         thread.start()
 
+    def move_(self, axis, d):
+        if self.moving_right:
+            axis = context.axis[axis - 1 + 6]['idx']
+        else:
+            axis = context.axis[axis - 1]['idx']
+        if axis != -1:
+            context.current_axis = axis
+            if context.zplatform.is_connected:
+                # print("moving on axis = ", abs(context.current_axis))
+                context.zplatform.move(axis, d * 8)
+            else:
+                print("not connected")
+
     def rotate_z(self, right):
         if right:
             axis = context.axis[context.z2_ang_i]['idx']
@@ -321,26 +317,8 @@ class MotionGUI:
         if axis != -1:
             context.current_axis = axis
             if context.zplatform.is_connected:
-                # print("moving on axis = ", abs(context.current_axis))
-                steps_per_degree = 2360
                 print(angle1)
-                context.zplatform.move(axis, steps_per_degree * angle1)
-                # print(self.angle1, self.angle2, self.angle1 - self.angle2)
-            else:
-                print("not connected")
-
-    def move_x(self, right):
-        print("move x")
-        delta = (self.v2b - self.v1b) / np.sqrt(self.v1k ** 2 + 1)
-        if right:
-            axis = context.axis[context.x2_line_i]['idx']
-        else:
-            axis = context.axis[context.x1_line_i]['idx']
-        if axis != -1:
-            context.current_axis = axis
-            if context.zplatform.is_connected:
-                # print("moving on axis = ", abs(context.current_axis))
-                context.zplatform.move(axis, delta / self.pix_per_step - 100 * 8)
+                context.zplatform.move(axis, STEP_PER_GRAD_Z * angle1)
             else:
                 print("not connected")
 
@@ -356,18 +334,9 @@ class MotionGUI:
         self.moving_y = True
         self.moving_right = right
 
-    '''
-    def set_pix_per_step(self, sender, app_data, user_data):
-        if self.prev_x is None:
-            self.prev_x = (self.v2b - self.v1b) / np.sqrt(self.v1k ** 2 + 1)
-            print("prev: ", self.prev_x)
-
-        else:
-            x = (self.v2b - self.v1b) / np.sqrt(self.v1k ** 2 + 1)
-            self.pix_per_step = np.abs(x - self.prev_x)/(8*200)
-            print("pix per step", self.pix_per_step)
-            self.prev_x = None
-    '''
+    def move_x(self, right):
+        self.moving_right = right
+        self.move_(1, (self.v2b - self.v1b) / np.sqrt(self.v1k ** 2 + 1) - 5)
 
     def set_pix_per_step(self, sender, app_data, user_data):
         prev_x = (self.v2b - self.v1b) / np.sqrt(self.v1k ** 2 + 1)
@@ -405,23 +374,26 @@ class MotionGUI:
         print(self.pos_1, self.pos_2)
 
     def run_task(self):
-
+        #dirt_img = cv2.imread(r"C:\Users\Octopus\Desktop\dirt.jpg")
+        #dirt_img = cv2.cvtColor(dirt_img, cv2.COLOR_RGB2GRAY)
+        # cv2.normalize(dirt_img, dirt_img, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
         while True:
-
             self.obj_cam.MV_CC_GetOneFrameTimeout(self.buf_grab_image, self.buf_grab_image_size, self.stFrameInfo)
 
-            resized = resize_image(Mono_numpy(self.buf_grab_image, self.n_w, self.n_h), self.val)
-            normalized_image = resize_image(Mono_numpy(self.buf_grab_image, self.n_w, self.n_h), self.val)
+            resized = Mono_numpy(self.buf_grab_image, self.n_w, self.n_h)
+            # resized += dirt_img
             normalized_image = cv2.normalize(resized, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
             # resized = Mono_numpy(self.buf_grab_image, self.n_w, self.n_h)
             final = cv2.cvtColor(normalized_image, cv2.COLOR_GRAY2RGB)
 
-            if not self.fixed:
-                detector = cv2.ximgproc.createFastLineDetector(length_threshold=int(self.minLineLength),
-                                                               distance_threshold=int(self.maxLineGap),
-                                                               canny_th1=self.threshold1, canny_th2=self.threshold2,
-                                                               canny_aperture_size=5, do_merge=True)
-                self.lines_ = detector.detect(resized)
+            th1 = 3.8 * 255  # dpg.get_value("th1")
+            th2 = 3.9 * 255  # dpg.get_value("th2")
+            detector = cv2.ximgproc.createFastLineDetector(length_threshold=int(self.minLineLength),
+                                                           distance_threshold=int(self.maxLineGap),
+                                                           canny_th1=th1,
+                                                           canny_th2=th2,
+                                                           canny_aperture_size=5, do_merge=True)
+            self.lines_ = detector.detect(resized)
             vertical_1_x = []
             vertical_1_y = []
             vertical_2_x = []
@@ -437,15 +409,28 @@ class MotionGUI:
 
                         if isHorizontal(line_):
                             if line_[0] < self.c_x and line_[2] < self.c_x:
-                                horizontal_1_x.append(line_[0])
-                                horizontal_1_y.append(line_[1])
-                                horizontal_1_x.append(line_[2])
-                                horizontal_1_y.append(line_[3])
+                                if line_[0] < line_[2]:
+                                    horizontal_1_x.append(line_[0])
+                                    horizontal_1_y.append(line_[1])
+                                    horizontal_1_x.append(line_[2])
+                                    horizontal_1_y.append(line_[3])
+                                else:
+                                    horizontal_1_x.append(line_[2])
+                                    horizontal_1_y.append(line_[3])
+                                    horizontal_1_x.append(line_[0])
+                                    horizontal_1_y.append(line_[1])
                             else:
-                                horizontal_2_x.append(line_[0])
-                                horizontal_2_y.append(line_[1])
-                                horizontal_2_x.append(line_[2])
-                                horizontal_2_y.append(line_[3])
+                                if line_[0] < line_[2]:
+                                    horizontal_2_x.append(line_[0])
+                                    horizontal_2_y.append(line_[1])
+                                    horizontal_2_x.append(line_[2])
+                                    horizontal_2_y.append(line_[3])
+                                else:
+                                    horizontal_2_x.append(line_[2])
+                                    horizontal_2_y.append(line_[3])
+                                    horizontal_2_x.append(line_[0])
+                                    horizontal_2_y.append(line_[1])
+
                         else:
                             if line_[0] < self.c_x and line_[2] < self.c_x:
                                 vertical_1_x.append(line_[0])
@@ -488,14 +473,14 @@ class MotionGUI:
             if self.moving_z1:
                 if self.moving_right:
                     if len(vertical_2_x) < 1:
-                        move_z_1(self.moving_right, 1)
+                        self.move_(3, 1)
 
                     else:
                         self.moving_z1 = False
-                        move_z_1(self.moving_right, 20)
+                        self.move_(3, 20)
                 else:
                     if len(vertical_1_x) < 1:
-                        move_z_1(self.moving_right, 1)
+                        self.move_(3, 1)
                     else:
                         if len(horizontal_1_y) > 0:
                             min_y = np.min(horizontal_1_y)
@@ -505,45 +490,38 @@ class MotionGUI:
                             self.center_y = (self.max_y + self.min_y) / 2
                             self.y1 = self.center_y
                         self.moving_z1 = False
-                        move_z_1(self.moving_right, 20)
+                        self.move_(3, 20)
 
             if self.moving_z2:
-                move_z_1(self.moving_right, 700)
+                self.move_(3, 700)
                 self.moving_z2 = False
 
             if self.moving_y:
                 min_dy = 1000
-                if not self.moving_right:
-                    axis = context.axis[context.y1_line_i]['idx']
-                    if len(horizontal_1_y) > 1:
-                        for i in range(0, len(horizontal_2_y), 2):
-                            cv2.line(final, (int(horizontal_2_x[i]), int(horizontal_2_y[i])),
-                                     (int(horizontal_2_x[i + 1]), int(horizontal_2_y[i + 1])),
-                                     (255, 0, 0), int(0.2 * self.val))
-                            dy = horizontal_2_y[i] - self.y1
+                if self.moving_right:
+                    if len(horizontal_2_y) > 1:
+                        for i in range(0, len(horizontal_1_y), 2):
+                            cv2.line(final, (int(horizontal_1_x[i]), int(horizontal_1_y[i])),
+                                     (int(horizontal_1_x[i + 1]), int(horizontal_1_y[i + 1])),
+                                     (255, 255, 0), int(0.2 * self.val))
+                            j = (len(horizontal_2_y) - 1) // 4 * 2
+                            dy = horizontal_2_y[j] - horizontal_1_y[i + 1]
                             if abs(dy) < abs(min_dy):
                                 min_dy = dy
                 else:
-                    axis = context.axis[context.y2_line_i]['idx']
                     if len(horizontal_1_y) > 1:
                         for i in range(0, len(horizontal_2_y), 2):
                             cv2.line(final, (int(horizontal_2_x[i]), int(horizontal_2_y[i])),
                                      (int(horizontal_2_x[i + 1]), int(horizontal_2_y[i + 1])),
-                                     (255, 0, 0), int(0.2 * self.val))
-                            dy = horizontal_2_y[0] - horizontal_1_y[i + 1]
+                                     (255, 255, 0), int(0.2 * self.val))
+                            dy = self.y1 - horizontal_2_y[i]
                             if abs(dy) < abs(min_dy):
                                 min_dy = dy
-                if axis != -1:
-                    context.current_axis = axis
-                    if context.zplatform.is_connected:
-                        print(min_dy)
-                        if 1000 > abs(min_dy) > 10:
-                            context.zplatform.move(axis, (-min_dy) / self.pix_per_step)
-                            self.moving_y = False
-                            move_z_1(self.moving_right, 400-200)
-                    else:
-                        print("not connected")
-
+                print(min_dy)
+                if 1000 > abs(min_dy) > 10:
+                    self.move_(2, (-min_dy) / self.pix_per_step)
+                    self.moving_y = False
+                    self.move_(3, 400 - 200)
 
             cv2.line(final, (int(0), int(self.y1)),
                      (int(self.c_x), int(self.y1)),
@@ -551,6 +529,11 @@ class MotionGUI:
             cv2.line(final, (int(0), int(self.y2)),
                      (int(self.c_x), int(self.y2)),
                      (255, 255, 0), int(0.05 * self.val))
+            if self.pos_1 is not None and self.pos_2 is not None:
+                a = (self.pos_1 / 400 * self.width).astype(int)
+                b = (self.pos_2 / 400 * self.width).astype(int)
+
+                cv2.rectangle(final, a, b, (0, 255, 255), int(0.05 * self.val))
             display_img("camera_1", cv2.resize(final, (400, 400), interpolation=cv2.INTER_AREA))
 
     @staticmethod
@@ -792,6 +775,10 @@ class MotionGUI:
                 dpg.add_button(label="Y", callback=lambda: self.move_y(False))
                 dpg.add_button(label="X", callback=lambda: self.move_x(False))
             with dpg.group(horizontal=False):
+                # dpg.add_slider_int(label="", default_value=int(255 * 3.7), max_value=255 * 4, min_value=10, tag="th1",
+                #                    width=250)
+                # dpg.add_slider_int(label="", default_value=int(255 * 3.7), max_value=255 * 4, min_value=10, tag="th2",
+                #                    width=250)
                 dpg.add_image('camera_1', tag="group_123")
                 with dpg.item_handler_registry(tag="widget_handler"):
                     dpg.add_item_clicked_handler(callback=self.click_callback)
