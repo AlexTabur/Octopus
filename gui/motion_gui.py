@@ -2,8 +2,6 @@ import threading
 from threading import Timer
 from time import sleep
 
-import cv2
-import numpy as np
 from pynput import keyboard
 from win32gui import GetWindowText, GetForegroundWindow
 
@@ -215,7 +213,13 @@ def get_axis_params():
 class MotionGUI:
 
     def __init__(self):
-        self.min_y = 0
+
+        self.moving_y = False
+        self.y1 = 0
+        self.y2 = 0
+        self.max_y = 0
+        self.min_y = 5000
+        self.center_y = 0
         self.pos_2 = None
         self.pos_1 = None
         self.prev_len = 0
@@ -283,12 +287,12 @@ class MotionGUI:
         if ret_temp != MV_OK:
             return
         self.NeedBufSize = int(stPayloadSize.nCurValue)
-        self.val = 45
-        self.val2 = 7
+        self.val = 70
+        self.val2 = 3
         self.threshold1 = 255 * 3.5
-        self.threshold2 = 255 * 3.9
-        self.rho = 1
-        self.theta = np.pi / 180 / 10
+        self.threshold2 = 255 * 3.8
+        self.rho = 300
+        self.theta = 4 * np.pi / 180
         self.threshold = 200
         self.n_w, self.n_h = 5120, 5120
         self.width = int(self.n_w * self.val / 100)
@@ -347,6 +351,10 @@ class MotionGUI:
         self.moving_z2 = True
         self.moving_right = right
 
+    def move_y(self, right):
+        self.moving_y = True
+        self.moving_right = right
+
     '''
     def set_pix_per_step(self, sender, app_data, user_data):
         if self.prev_x is None:
@@ -359,6 +367,7 @@ class MotionGUI:
             print("pix per step", self.pix_per_step)
             self.prev_x = None
     '''
+
     def set_pix_per_step(self, sender, app_data, user_data):
         prev_x = (self.v2b - self.v1b) / np.sqrt(self.v1k ** 2 + 1)
         print("prev: ", prev_x)
@@ -370,24 +379,24 @@ class MotionGUI:
             context.current_axis = axis
             if context.zplatform.is_connected:
                 # print("moving on axis = ", abs(context.current_axis))
-                context.zplatform.move(axis, -200*8)
+                context.zplatform.move(axis, -200 * 8)
 
             else:
                 print("not connected")
 
         sleep(3)
         x = (self.v2b - self.v1b) / np.sqrt(self.v1k ** 2 + 1)
-        self.pix_per_step = np.abs(x - prev_x)/(8*200)
+        self.pix_per_step = np.abs(x - prev_x) / (8 * 200)
         print("pix per step", self.pix_per_step)
 
     def click_callback(self):
         a = np.array(dpg.get_mouse_pos(local=False))
         b = np.array(dpg.get_item_pos("group_123"))
         if self.pos_1 is None:
-            self.pos_1 = a-b
+            self.pos_1 = a - b
 
         elif self.pos_2 is None:
-            self.pos_2 = a-b
+            self.pos_2 = a - b
 
         else:
             self.pos_1 = None
@@ -401,11 +410,14 @@ class MotionGUI:
             self.obj_cam.MV_CC_GetOneFrameTimeout(self.buf_grab_image, self.buf_grab_image_size, self.stFrameInfo)
 
             resized = resize_image(Mono_numpy(self.buf_grab_image, self.n_w, self.n_h), self.val)
+            # resized = Mono_numpy(self.buf_grab_image, self.n_w, self.n_h)
             final = cv2.cvtColor(resized, cv2.COLOR_GRAY2RGB)
 
             if not self.fixed:
-                detector = cv2.ximgproc.createFastLineDetector(length_threshold=int(self.minLineLength), distance_threshold=int(self.maxLineGap),
-                                                               canny_th1=self.threshold1, canny_th2=self.threshold2, canny_aperture_size=5, do_merge=True)
+                detector = cv2.ximgproc.createFastLineDetector(length_threshold=int(self.minLineLength),
+                                                               distance_threshold=int(self.maxLineGap),
+                                                               canny_th1=self.threshold1, canny_th2=self.threshold2,
+                                                               canny_aperture_size=5, do_merge=True)
                 self.lines_ = detector.detect(resized)
             vertical_1_x = []
             vertical_1_y = []
@@ -443,25 +455,6 @@ class MotionGUI:
                                 vertical_2_x.append(line_[2])
                                 vertical_2_y.append(line_[3])
 
-            # if len(horizontal_1_x) > 0:
-            #     m, b = np.polyfit(horizontal_1_x, horizontal_1_y, 1)
-            #     self.angle3 = np.atan(m) * 180 / np.pi
-            #     cv2.line(final, (0, int(get_y(0, m, b))),
-            #              (int(width), int(get_y(int(width), m, b))),
-            #              (0, 0, 255),
-            #              int(0.1 * self.val))
-            #     self.h1b = b
-            #     self.h1k = m
-            # if len(horizontal_2_x) > 0:
-            #     m, b = np.polyfit(horizontal_2_x, horizontal_2_y, 1)
-            #     self.angle4 = np.atan(m) * 180 / np.pi
-            #     cv2.line(final, (0, int(get_y(0, m, b))),
-            #              (int(width), int(get_y(int(width), m, b))),
-            #              (0, 0, 255),
-            #              int(0.1 * self.val))
-            #     self.h2b = b
-            #     self.h2k = m
-
             if len(vertical_1_x) > 0:
                 m, b = np.polyfit(vertical_1_y, vertical_1_x, 1)
                 self.angle1 = np.atan(m) * 180 / np.pi
@@ -482,8 +475,8 @@ class MotionGUI:
                 self.v2k = m
             for i in range(0, len(horizontal_1_x), 2):
                 cv2.line(final, (int(horizontal_1_x[i]), int(horizontal_1_y[i])),
-                         (int(horizontal_1_x[i+1]), int(horizontal_1_y[i+1])),
-                         (255,0,0), int(0.1 * self.val))
+                         (int(horizontal_1_x[i + 1]), int(horizontal_1_y[i + 1])),
+                         (255, 0, 0), int(0.1 * self.val))
             for i in range(0, len(horizontal_2_x), 2):
                 cv2.line(final, (int(horizontal_2_x[i]), int(horizontal_2_y[i])),
                          (int(horizontal_2_x[i + 1]), int(horizontal_2_y[i + 1])),
@@ -500,19 +493,25 @@ class MotionGUI:
                     if len(vertical_1_x) < 1:
                         move_z_1(self.moving_right)
                     else:
-                        self.moving_z1 = False
-                        min_y = np.min(horizontal_1_y)
-                        max_y = np.max(horizontal_1_y)
 
-                        #cv2.line()
+                        if len(horizontal_1_y) > 0:
+                            min_y = np.min(horizontal_1_y)
+                            max_y = np.max(horizontal_1_y)
+                            self.min_y = min(min_y, self.min_y)
+                            self.max_y = max(max_y, self.max_y)
+                            diff = self.max_y - self.min_y
+                            self.center_y = (self.max_y + self.min_y) / 2
+                            self.y1 = self.center_y - 0.1 * diff
+                            self.y2 = self.center_y + 0.1 * diff
+                        self.moving_z1 = False
 
             if self.moving_z2:
-                # print(len(horizontal_2_x))
                 if self.moving_right:
                     if len(horizontal_2_x) + 4 >= self.prev_len:
                         move_z_1(self.moving_right)
                         self.prev_len = len(horizontal_2_x)
                     else:
+                        move_z_1(self.moving_right)
                         self.moving_z2 = False
                         self.prev_len = 0
                 else:
@@ -520,20 +519,49 @@ class MotionGUI:
                         move_z_1(self.moving_right)
                         self.prev_len = len(horizontal_1_x)
                     else:
+                        move_z_1(self.moving_right)
                         self.moving_z2 = False
                         self.prev_len = 0
-            if self.pos_1 is not None and self.pos_2 is not None:
+            if self.moving_y:
+                min_dy = 1000
+                if not self.moving_right:
+                    axis = context.axis[context.y1_line_i]['idx']
+                    for i in range(0, len(horizontal_2_y), 2):
+                        cv2.line(final, (int(horizontal_2_x[i]), int(horizontal_2_y[i])),
+                                 (int(horizontal_2_x[i + 1]), int(horizontal_2_y[i + 1])),
+                                 (255, 0, 0), int(0.2 * self.val))
+                        dy = horizontal_2_y[i] - horizontal_1_y[1]
+                        if abs(dy) < abs(min_dy):
+                            min_dy = dy
+                else:
+                    axis = context.axis[context.y2_line_i]['idx']
+                    for i in range(0, len(horizontal_2_y), 2):
+                        cv2.line(final, (int(horizontal_2_x[i]), int(horizontal_2_y[i])),
+                                 (int(horizontal_2_x[i + 1]), int(horizontal_2_y[i + 1])),
+                                 (255, 0, 0), int(0.2 * self.val))
+                        dy = horizontal_2_y[0] - horizontal_1_y[i + 1]
+                        if abs(dy) < abs(min_dy):
+                            min_dy = dy
+                if axis != -1:
+                    context.current_axis = axis
+                    if context.zplatform.is_connected:
+                        print(min_dy)
+                        if 1000 > abs(min_dy) > 10:
+                            context.zplatform.move(axis, (-min_dy - 127 / 2) / self.pix_per_step)
+                            self.moving_y = False
+                    else:
+                        print("not connected")
 
-                a = (self.pos_1/400*self.width).astype(int)
-                b = (self.pos_2/400*self.width).astype(int)
-
-                cv2.rectangle(final, a, b, (0, 255, 255), int(0.05 * self.val))
-            cv2.line(final, (int(0), int(self.min_y)),
-                     (int(self.c_x), int(self.min_y)),
+            # if self.pos_1 is not None and self.pos_2 is not None:
+            #     a = (self.pos_1 / 400 * self.width).astype(int)
+            #     b = (self.pos_2 / 400 * self.width).astype(int)
+            #    cv2.rectangle(final, a, b, (0, 255, 255), int(0.05 * self.val))
+            cv2.line(final, (int(0), int(self.y1)),
+                     (int(self.c_x), int(self.y1)),
                      (255, 255, 0), int(0.05 * self.val))
-            # cv2.line(final, (int(0), int(self.max_y)),
-            #          (int(self.c_x), int(self.max_y)),
-            #          (255, 255, 0), int(0.05 * self.val))
+            cv2.line(final, (int(0), int(self.y2)),
+                     (int(self.c_x), int(self.y2)),
+                     (255, 255, 0), int(0.05 * self.val))
             display_img("camera_1", cv2.resize(final, (400, 400), interpolation=cv2.INTER_AREA))
 
     @staticmethod
@@ -757,7 +785,6 @@ class MotionGUI:
             context.current_axis = -1
             return
 
-
     def init_manual_page(self):
         context.positions.add_pos_window()
         top_margin = 70
@@ -773,9 +800,8 @@ class MotionGUI:
                 dpg.add_button(label="Калибровать увеличение", callback=self.set_pix_per_step, user_data=False)
                 dpg.add_button(label="X", callback=lambda: self.move_x(False))
                 dpg.add_button(label="Z2", callback=lambda: self.move_z2(False))
-                dpg.add_text("Y")
+                dpg.add_button(label="Y", callback=lambda: self.move_y(False))
             with dpg.group(horizontal=False):
-
                 dpg.add_image('camera_1', tag="group_123")
                 with dpg.item_handler_registry(tag="widget_handler"):
                     dpg.add_item_clicked_handler(callback=self.click_callback)
@@ -788,7 +814,7 @@ class MotionGUI:
                 dpg.add_button(label="Калибровать увеличение", callback=self.set_pix_per_step, user_data=True)
                 dpg.add_button(label="X", callback=lambda: self.move_x(True))
                 dpg.add_button(label="Z2", callback=lambda: self.move_z2(True))
-                dpg.add_text("Y")
+                dpg.add_button(label="Y", callback=lambda: self.move_y(True))
 
         stPayloadSize = MVCC_INTVALUE_EX()
         ret_temp = self.obj_cam.MV_CC_GetIntValueEx("PayloadSize", stPayloadSize)
