@@ -32,8 +32,8 @@ class ConfigCtrl():
                     context.editor_list.append(f"pm2100_ip{num}")
                     dpg.add_input_text(tag=f"pm2100_ip{num}", default_value=f"192.168.1.16{num}", width=125, height=16)
                     dpg.add_spacer(height=5)
-                    dpg.add_button(label="Обнулить", width=150, height=20,
-                                   callback=self.pm_zero_callback, user_data=num)
+                    # dpg.add_button(label="Обнулить", width=150, height=20,
+                    #                callback=self.pm_zero_callback, user_data=num)
 
                 dpg.add_spacer(width=10)
                 with dpg.table(header_row=False, resizable=False, borders_innerV=True, borders_outerH=True, width=700):
