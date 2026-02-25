@@ -92,7 +92,7 @@ class ConfigCtrl():
                 dpg.add_text(default_value=txt.LASER_GOLIGHT_TITLE)
 #                dpg.add_text(default_value="COM порт")
                 context.editor_list.append("laser_golight_ip")
-                dpg.add_input_text(tag="laser_golight_ip", default_value="192.168.1.170", width=125, height=16)
+                dpg.add_input_text(tag="laser_golight_ip", default_value="192.168.1.164", width=125, height=16)
                 dpg.add_text(default_value=txt.WAVE_LENGTH)
                 context.editor_list.append("golight_wlength")
                 dpg.add_input_text(tag="golight_wlength", default_value="1550.0", width=125, height=16,

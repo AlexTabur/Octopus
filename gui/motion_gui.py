@@ -1,6 +1,7 @@
 import threading
 from threading import Timer
 
+import cv2
 from pynput import keyboard
 from win32gui import GetWindowText, GetForegroundWindow
 
@@ -61,6 +62,28 @@ def init_setting_page():
             dpg.add_spacer(height=5)
 
 
+def set_step_value(steps_um: float):
+    steps = int(steps_um / X_MKM_KOEF)
+    steps_um = steps * X_MKM_KOEF
+    dpg.set_value("SliderStep", steps_um)
+    dpg.set_value("EditStep", steps_um)  # steps_um = steps * X_MKM_KOEF
+    dpg.set_value("StepValue", str(steps) + ' шагов')
+    context.step_value_platform = int(steps)  # установка скорости на все оси платформы
+    steps = int(steps_um / TABLE_MKM_KOEF)
+    context.step_value_table = int(steps)  # ?????????????????
+    save_prameters()
+
+
+def set_speed_value(speed: int):
+    dpg.set_value("SliderSpeed", speed)
+    dpg.set_value("EditSpeed", speed)
+    dpg.set_value("SpeedValue", "X,Y,Z лин = " + str(speed * NM_PER_STEP_X / 1000) + ' ' + txt.SET_LIN_SPEED_DIM)
+    context.speed_value_platform = speed
+    context.zcontrollers.set_platforms_speed(speed)  # установка скорости на все оси платформы
+    context.zcontrollers.set_table_speed(speed)  # установка скорости на все оси платформы
+    save_prameters()
+
+
 class MotionGUI:
 
     def __init__(self):
@@ -87,7 +110,7 @@ class MotionGUI:
         self.width_table = 0
         self.height_table = 0
         self.data_table = 0
-
+        self.pixelsPer100u = 17
         self.width_btn = 0
         self.height_btn = 0
         self.thread_proc = 0
@@ -122,8 +145,8 @@ class MotionGUI:
         self.NeedBufSize = int(stPayloadSize.nCurValue)
         self.val = 40
         self.val2 = 7
-        self.threshold1 = 50
-        self.threshold2 = 255
+        self.threshold1 = 10
+        self.threshold2 = 250
         self.rho = 1  # ui.rho.value()
         self.theta = np.pi / 180 / 10  # ui.theta.value()
         self.threshold = 200
@@ -131,7 +154,7 @@ class MotionGUI:
         self.minLineLength = 0.6 / 100 * self.n_w * self.val / 100
         self.maxLineGap = 100 / 100 * self.n_w * self.val / 100
         self.c_x, self.c_y = int(self.n_w * self.val / 100 / 2), int(self.n_w * self.val / 100 / 2)
-        self.mask = cv2.circle(np.zeros((2048, 2048), dtype="uint8"), (self.c_x, self.c_y), self.c_x-300, 255, -1)
+        self.mask = cv2.circle(np.zeros((2048, 2048), dtype="uint8"), (self.c_x, self.c_y), self.c_x - 300, 255, -1)
         self.last_photo_taken = time.time()
         if self.buf_grab_image_size < self.NeedBufSize:
             self.buf_grab_image = (self.NeedBufSize * ctypes.c_ubyte)()
@@ -176,10 +199,11 @@ class MotionGUI:
                 # print("moving on axis = ", abs(context.current_axis))
 
                 print(delta)
-                # 32.961405521725055
-                context.zplatform.move(axis, delta * 1600 / 35 - 8 * 100)
+                # 9.2*magnification
+                context.zplatform.move(axis, delta * 8 * 100 / int(self.pixelsPer100u))
             else:
                 print("not connected")
+
     def run_task(self):
         while True:
             # Camera
@@ -190,9 +214,10 @@ class MotionGUI:
                 resized = resize_image(Mono_numpy(self.buf_grab_image, self.n_w, self.n_h), self.val)
                 resized = cv2.transpose(cv2.flip(resized, flipCode=1))
                 cv2.normalize(resized, resized, 0.0, 255.0, norm_type=cv2.NORM_MINMAX)
+                #resized = cv2.medianBlur(resized, self.val2)
                 resized = cv2.medianBlur(resized, self.val2)
                 # resized = cv2.Sobel(resized, cv2.CV_8U, 0, 1)
-                edges = cv2.Canny(resized, self.threshold1, self.threshold2, apertureSize=3, L2gradient=True)
+                edges = cv2.Canny(resized, self.threshold1, self.threshold2, apertureSize=5, L2gradient=True)
                 edges &= self.mask
 
                 final = cv2.cvtColor(resized, cv2.COLOR_GRAY2RGB)
@@ -210,7 +235,8 @@ class MotionGUI:
                             k = get_k(line[0])
                             if abs(k) < 1:
                                 line_ = line[0]
-                                if line_[1] < self.n_w * 0.5 * self.val / 100 and line_[3] < self.n_w * 0.5 * self.val / 100:
+                                if line_[1] < self.n_w * 0.5 * self.val / 100 and line_[
+                                    3] < self.n_w * 0.5 * self.val / 100:
                                     lines_2_x.append(line_[0])
                                     lines_2_y.append(line_[1])
                                     lines_2_x.append(line_[2])
@@ -230,6 +256,7 @@ class MotionGUI:
                              int(0.1 * self.val))
                     self.b1 = b
                     self.k1 = m
+                    print(1, self.b1, self.k1)
                 if len(lines_3_x) > 0:
                     m, b = np.polyfit(lines_3_x, lines_3_y, 1)
                     self.angle2 = np.atan(m) * 180 / np.pi
@@ -239,11 +266,11 @@ class MotionGUI:
                              int(0.1 * self.val))
                     self.b2 = b
                     self.k2 = m
-
-                display_img("camera_1",
-                            cv2.resize(cv2.flip(cv2.cvtColor(cv2.transpose(edges), cv2.COLOR_GRAY2RGB), flipCode=1),
-                                       (400, 400)))
-                display_img("camera_2", cv2.resize(cv2.flip(cv2.transpose(final), flipCode=1), (400, 400)))
+                    print(2, self.b2, self.k2)
+                # display_img("camera_2",
+                #             cv2.resize(cv2.flip(cv2.cvtColor(cv2.transpose(edges), cv2.COLOR_GRAY2RGB), flipCode=1),
+                #                        (400, 400)))
+                display_img("camera_1", cv2.resize(cv2.flip(cv2.transpose(final), flipCode=1), (400, 400)))
                 # cv2.imshow("img", edges)
 
     def loop(self):
@@ -297,19 +324,19 @@ class MotionGUI:
     def step_edit_callback(self, sender, app_data, user_data):
         steps = dpg.get_value("EditStep")
         if steps.replace('.', '', 1).isdigit():
-            self.set_step_value(float(steps))
+            set_step_value(float(steps))
         else:
             steps = dpg.get_value('SliderStep')
-            self.set_step_value(float(steps))
+            set_step_value(float(steps))
 
     def speed_edit_callback(self, sender, app_data, user_data):
         speed = dpg.get_value("EditSpeed")
         speed = re.sub(r'\D', '', speed)
         if speed.isdigit():
-            self.set_speed_value(int(speed))
+            set_speed_value(int(speed))
         else:
             speed = dpg.get_value('SliderSpeed')
-            self.set_speed_value(int(speed))
+            set_speed_value(int(speed))
 
     def btn_store_as_preset(self, sender, app_data, user_data):
         context.zcontrollers.store_preset_pos(user_data)
@@ -563,11 +590,11 @@ class MotionGUI:
 
     def item_release_callback(self, sender, app_data, user_data):
         if context.clicked_on == self.step_slider_id:
-            self.set_step_value(dpg.get_value("SliderStep"))
+            set_step_value(dpg.get_value("SliderStep"))
             context.clicked_on = 0
             return
         if context.clicked_on == self.speed_slider_id:
-            self.set_speed_value(dpg.get_value("SliderSpeed"))
+            set_speed_value(dpg.get_value("SliderSpeed"))
             context.clicked_on = 0
             return
         if context.current_axis != -1:
@@ -578,25 +605,11 @@ class MotionGUI:
 
     #        dpg.delete_item("msg_window", slot=1)
 
-    def set_speed_value(self, speed: int):
-        dpg.set_value("SliderSpeed", speed)
-        dpg.set_value("EditSpeed", speed)
-        dpg.set_value("SpeedValue", "X,Y,Z лин = " + str(speed * NM_PER_STEP_X / 1000) + ' ' + txt.SET_LIN_SPEED_DIM)
-        context.speed_value_platform = speed
-        context.zcontrollers.set_platforms_speed(speed)  # установка скорости на все оси платформы
-        context.zcontrollers.set_table_speed(speed)  # установка скорости на все оси платформы
-        save_prameters()
-
-    def set_step_value(self, steps_um: float):
-        steps = int(steps_um / X_MKM_KOEF)
-        steps_um = steps * X_MKM_KOEF
-        dpg.set_value("SliderStep", steps_um)
-        dpg.set_value("EditStep", steps_um)  # steps_um = steps * X_MKM_KOEF
-        dpg.set_value("StepValue", str(steps) + ' шагов')
-        context.step_value_platform = int(steps)  # установка скорости на все оси платформы
-        steps = int(steps_um / TABLE_MKM_KOEF)
-        context.step_value_table = int(steps)  # ?????????????????
-        save_prameters()
+    def set_pix_per_100(self, sender, app_data, user_data):
+        speed = dpg.get_value("EditPixPer100")
+        speed = re.sub(r'\D', '', speed)
+        if speed.isdigit():
+            self.pixelsPer100u = int(speed)
 
     def init_manual_page(self):
         # )
@@ -608,17 +621,22 @@ class MotionGUI:
         left_margin = 100
         dpg.add_image('texture_xy', pos=(400 + left_margin, 223 + top_margin))
         dpg.add_image('texture_z', pos=(89 + left_margin, 223 + top_margin))
-
-        dpg.add_image('camera_1', pos=(left_margin, top_margin + 500))
-        dpg.add_image('camera_2', pos=(left_margin + 600, top_margin + 500))
-        dpg.add_button(label="rotate", pos=(left_margin + 400, top_margin + 500),
+        cam_marg = left_margin + 1200
+        cam_marg_y = top_margin + 200
+        dpg.add_image('camera_1', pos=(cam_marg, top_margin))
+        # dpg.add_image('camera_2', pos=(left_margin + 1500, top_margin))
+        dpg.add_button(label="rotate left", pos=(cam_marg - 150, cam_marg_y),
                        callback=lambda: self.rotate_z(False))
-        dpg.add_button(label="rotate", pos=(left_margin + 500, top_margin + 500),
+        dpg.add_button(label="rotate right", pos=(cam_marg + 400, cam_marg_y),
                        callback=lambda: self.rotate_z(True))
-        dpg.add_button(label="move", pos=(left_margin + 400, top_margin + 550),
+        dpg.add_button(label="move left", pos=(cam_marg - 150, cam_marg_y + 50),
                        callback=lambda: self.move_x(False))
-        dpg.add_button(label="move", pos=(left_margin + 500, top_margin + 550),
+        dpg.add_button(label="move right", pos=(cam_marg + 400, cam_marg_y + 50),
                        callback=lambda: self.move_x(True))
+        with dpg.group(pos=(cam_marg, cam_marg_y + 200), horizontal=True):
+            dpg.add_text("Пикселей в 100мкм")
+            dpg.add_input_text(label="", tag="EditPixPer100", decimal=True, default_value="17", width=50,
+                               callback=self.set_pix_per_100)
         # dpg.add_image('camera_2', pos=(x_, 223 + top_margin))
         # dpg.add_button(label="Начать", pos=(x_, -23 + top_margin+201), callback=lambda sender, app_data: camera_connect(sender, app_data, 0))
         # stOutFrame = MV_FRAME_OUT()
@@ -790,8 +808,8 @@ class MotionGUI:
                                    callback=self.step_edit_callback)
                 dpg.add_text(tag="StepValue")
 
-            self.set_step_value(context.step_value_platform * X_MKM_KOEF)
-            self.set_speed_value(context.speed_value_platform)
+            set_step_value(context.step_value_platform * X_MKM_KOEF)
+            set_speed_value(context.speed_value_platform)
 
         context.t = Timer(1, self.timer_read_axis)
         context.t.start()
@@ -882,10 +900,10 @@ class MotionGUI:
         pic_width, pic_height, pic_channels, pic_data = dpg.load_image("Pics//chan_pos_right.png")
         dpg.add_dynamic_texture(width=pic_width, height=pic_height, default_value=pic_data, tag="chan_pos_right")
 
-        dpg.add_raw_texture(width=400, height=400, default_value=[0.0]*400*400*3,
+        dpg.add_raw_texture(width=400, height=400, default_value=[0.0] * 400 * 400 * 3,
                             tag="camera_1", format=dpg.mvFormat_Float_rgb)
-        dpg.add_raw_texture(width=400, height=400, default_value=[0.0]*400*400*3,
-                            tag="camera_2", format=dpg.mvFormat_Float_rgb)
+        # dpg.add_raw_texture(width=400, height=400, default_value=[0.0]*400*400*3,
+        #                     tag="camera_2", format=dpg.mvFormat_Float_rgb)
 
         # dpg.add_raw_texture(width=400, height=400, default_value=np.zeros((400,400,3), dtype=np.float32), tag="camera_2", format=dpg.mvFormat_Float_rgb)
         dpg.pop_container_stack()
