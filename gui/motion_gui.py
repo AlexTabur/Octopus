@@ -199,7 +199,7 @@ def get_axis_params():
 
 
 def move_table_(d):
-    context.ztable.move(AXIS_TABLE, d/UM_PER_STEP_TABLE)
+    context.ztable.move(AXIS_TABLE, d / UM_PER_STEP_TABLE)
 
 
 class MotionGUI:
@@ -210,7 +210,7 @@ class MotionGUI:
         self.bx = 0
         self.by = 0
         self.delta_y = 0
-        self.pix_per_step_b = 500
+        self.pix_per_step_b = 2293/(8*5700)  # 500
         self.lines_2 = None
         self.moving_y = False
         self.y1 = 0
@@ -224,7 +224,7 @@ class MotionGUI:
         self.pos_4 = None
         self.prev_len = 0
         self.moving_z2 = False
-        self.pix_per_step = 500
+        self.pix_per_step = 19.9649737
         self.get_pix_per_step = False
         self.prev_x = None
         self.moving_right = False
@@ -314,7 +314,16 @@ class MotionGUI:
         angle1 = self.angle2 - self.angle1
         # context.logger.log_warning(str(axis) + " " + str(dir))
         # return
-
+        if right:
+            self.angle2 = self.angle1
+            b = 0
+            m = np.tan(self.angle2)
+            # self.k_b_to_points(m, b, "point2", "point3", "line 1")
+        else:
+            self.angle1 = self.angle2
+            b = 0
+            m = np.tan(self.angle2)
+            # self.k_b_to_points(m, b, "point0", "point1", "line 0")
         if axis != -1:
             context.current_axis = axis
             if context.zplatform.is_connected:
@@ -342,14 +351,17 @@ class MotionGUI:
 
     def move_next_chip(self, right):
         self.moving_right = right
-        offset = 100
         offset_2 = 1000
-        chip_height = 5700
+        chip_height = dpg.get_value("th1")
         self.move_(1, -offset_2)
-        move_table_(-np.cos(self.angle1*np.pi/180)*chip_height)
+        move_table_(-np.cos(self.angle1 * np.pi / 180) * chip_height)
+        self.moving_right = not right
+        self.move_(1, -offset_2)
         sleep(2)
-        self.move_(1, (-np.sin(self.angle1*np.pi/180) * chip_height - offset)+offset_2)
-
+        self.moving_right = right
+        self.move_(1, (-np.sin(self.angle1 * np.pi / 180) * chip_height) + offset_2)
+        self.moving_right = not right
+        self.move_(1, (np.sin(self.angle1 * np.pi / 180) * chip_height) + offset_2)
 
     def set_pix_per_step(self, sender, app_data, user_data):
         prev_x = (self.v2b - self.v1b)
@@ -367,6 +379,13 @@ class MotionGUI:
         x = (self.v2b - self.v1b)
         self.pix_per_step = np.abs(x - prev_x) / delta_x / (self.v1k ** 2 + 1)
         self.pix_per_step_b = np.abs(x - prev_x) / delta_x
+
+    def k_b_to_points(self, m, b, point0, point1, line0):
+        zoom = 5120 / self.width
+        x_, x_2, y_, y_2 = get_y(0, m, b / zoom), get_y(self.width, m, b / zoom), self.width, 0
+        dpg.set_value(line0, [[x_, x_2], [y_, y_2]])
+        dpg.set_value(point0, [x_, y_])
+        dpg.set_value(point1, [x_2, y_2])
 
     def run_task(self):
         n_w, n_h = 5120, 5120
@@ -493,23 +512,10 @@ class MotionGUI:
                 vertical_2_y[i] += y3
             if len(vertical_1_x) > 0:
                 m, b = np.polyfit(vertical_1_y, vertical_1_x, 1)
-                self.angle1 = np.atan(m) * 180 / np.pi
-                print(self.angle1)
-                cv2.line(final, (int(get_y(0, m, b)), 0),
-                         (int(get_y(int(width), m, b)), int(width)),
-                         (0, 255, 0),
-                         line_thickness)  # 0.1 * self.val
-                self.v1b = b
-                self.v1k = m
+                self.k_b_to_points(m, b, "point0", "point1", "line 0")
             if len(vertical_2_x) > 0:
-                m, b = np.polyfit(vertical_2_y, vertical_2_x, 1)  # [best_index: best_index+2]
-                self.angle2 = np.atan(m) * 180 / np.pi
-                cv2.line(final, (int(get_y(0, m, b)), 0),
-                         (int(get_y(int(width), m, b)), int(width)),
-                         (0, 255, 0),
-                         line_thickness)  # 0.1 * self.val
-                self.v2b = b
-                self.v2k = m
+                m, b = np.polyfit(vertical_2_y, vertical_2_x, 1)
+                self.k_b_to_points(m, b, "point2", "point3", "line 1")
             # end new
             for i in range(0, len(horizontal_1_x), 2):
                 cv2.line(final, (int(horizontal_1_x[i]), int(horizontal_1_y[i])),
@@ -534,6 +540,17 @@ class MotionGUI:
             return final, horizontal_1_x, horizontal_1_y, vertical_1_x, horizontal_2_y, vertical_2_x
 
         def func2():
+            def points_to_k_b(point0, point1):
+                x_, y_ = dpg.get_value(point0)
+                x_2, y_2 = dpg.get_value(point1)
+                m = -(x_2 - x_) / (y_2 - y_)
+                b = x_2 - m * y_2
+                angle = np.atan(m) * 180 / np.pi
+                return b, m, angle
+                # print(self.angle1, self.angle2)
+
+            self.v1b, self.v1k, self.angle1 = points_to_k_b("point0", "point1")
+            self.v2b, self.v2k, self.angle2 = points_to_k_b("point2", "point3")
             if self.moving_z1:
                 if self.moving_right:
                     if len(vertical_2_x) < 1:
@@ -564,9 +581,9 @@ class MotionGUI:
                 if self.moving_right:
                     if len(horizontal_2_y) > 1:
                         for i in range(0, len(horizontal_1_y), 2):
-                            cv2.line(final, (int(horizontal_1_x[i]), int(horizontal_1_y[i])),
-                                     (int(horizontal_1_x[i + 1]), int(horizontal_1_y[i + 1])),
-                                     (255, 255, 0), line_thickness)  # 0.2 * self.val
+                            # cv2.line(final, (int(horizontal_1_x[i]), int(horizontal_1_y[i])),
+                            #          (int(horizontal_1_x[i + 1]), int(horizontal_1_y[i + 1])),
+                            #          (255, 255, 0), line_thickness)  # 0.2 * self.val
                             j = (len(horizontal_2_y) - 1) // 4 * 2
                             dy = horizontal_2_y[j] - horizontal_1_y[i]
                             if abs(dy) < abs(min_dy):
@@ -592,19 +609,25 @@ class MotionGUI:
             resized = Mono_numpy(self.buf_grab_image, n_w, n_h)
             width = 5120
             line_thickness = max(int(0.1 * width / 1000), 1)
-            if len(a) > 2:
-                resized = np.mean(a, axis=0)
-                a = []
-                final = cv2.cvtColor(resized.astype(np.uint8), cv2.COLOR_GRAY2RGB)
-                rois = dpg.get_plot_query_rects("plot_camera")
-                if len(rois) == 2:
-                    final, horizontal_1_x, horizontal_1_y, vertical_1_x, horizontal_2_y, vertical_2_x = func()
-                    func2()
-                # z right -8002.0 -2402.0 -802.0 bruh 135.0
-                display_img("camera_1", cv2.resize(final, (self.width, self.width)))
-
-            else:
-                a.append(resized)
+            # if len(a) > 2:
+            #     resized = np.mean(a, axis=0)
+            #     a = []
+            #     final = cv2.cvtColor(resized.astype(np.uint8), cv2.COLOR_GRAY2RGB)
+            #     rois = dpg.get_plot_query_rects("plot_camera")
+            #     if len(rois) == 2:
+            #         final, horizontal_1_x, horizontal_1_y, vertical_1_x, horizontal_2_y, vertical_2_x = func()
+            #         func2()
+            #     # z right -8002.0 -2402.0 -802.0 bruh 135.0
+            #     display_img("camera_1", cv2.resize(final, (self.width, self.width)))
+            # else:
+            #     a.append(resized)
+            final = cv2.cvtColor(resized.astype(np.uint8), cv2.COLOR_GRAY2RGB)
+            rois = dpg.get_plot_query_rects("plot_camera")
+            if len(rois) == 2:
+                final, horizontal_1_x, horizontal_1_y, vertical_1_x, horizontal_2_y, vertical_2_x = func()
+                func2()
+            # z right -8002.0 -2402.0 -802.0 bruh 135.0
+            display_img("camera_1", cv2.resize(final, (self.width, self.width)))
 
     @staticmethod
     def loop():
@@ -895,33 +918,101 @@ class MotionGUI:
             with dpg.group(horizontal=False):
                 dpg.add_button(label="Z1", callback=lambda: self.move_z1(False))
                 dpg.add_button(label="Рыскание", callback=lambda: self.rotate_z(False))
-                dpg.add_button(label="Увеличение", callback=self.set_pix_per_step, user_data=False)
+                # dpg.add_button(label="Увеличение", callback=self.set_pix_per_step, user_data=False)
 
                 dpg.add_button(label="Z2", callback=lambda: self.move_z2(False))
                 dpg.add_button(label="Y", callback=lambda: self.move_y(False))
-                dpg.add_button(label="X", callback=lambda: self.move_x(False))
+                # dpg.add_button(label="X", callback=lambda: self.move_x(False))
                 dpg.add_button(label="следующий чип", callback=lambda: self.move_next_chip(False))
             with dpg.group(horizontal=False):
-                dpg.add_slider_int(label="length", default_value=int(255 * 0.5), max_value=255, min_value=1, tag="th1",
+                dpg.add_slider_int(label="Высота чипа", default_value=5700, max_value=10000, min_value=1, tag="th1",
                                    width=250)
                 dpg.add_slider_int(label="distance", default_value=int(255 * 0.5), max_value=255, min_value=1,
                                    tag="th2",
                                    width=250)
-                dpg.add_slider_int(label="", default_value=int(255 * 0.8), min_value=1, max_value=255, tag="th3", width=250)
-                dpg.add_slider_int(label="", default_value=int(255 * 0.9), min_value=1, max_value=255, tag="th4", width=250)
-                with dpg.plot(height=400, width=400, query=True, min_query_rects=0, max_query_rects=2,
-                              tag="plot_camera", query_color=(0, 255, 0, 100)):
+                dpg.add_slider_int(label="", default_value=int(255 * 0.8), min_value=1, max_value=255, tag="th3",
+                                   width=250)
+                dpg.add_slider_int(label="", default_value=int(255 * 0.9), min_value=1, max_value=255, tag="th4",
+                                   width=250)
+                _pltkwargs = dict(pos=(700, 300), height=400, width=400)
+                with dpg.plot(tag="slave plot", query=False, **_pltkwargs):
                     dpg.add_plot_axis(dpg.mvXAxis, label='x', tag="bruh_")
-                    dpg.add_plot_axis(dpg.mvYAxis, label='y', tag="bruh_2")
-                    dpg.set_axis_limits_constraints('bruh_', 0, self.width)
-                    dpg.set_axis_limits_constraints('bruh_2', 0, self.width)
+                    dpg.add_plot_axis(dpg.mvXAxis, tag="slave xax")
+                    with dpg.plot_axis(dpg.mvYAxis, tag="slave yax"):
+                        dpg.add_image_series('camera_1', (0, 0), (self.width, self.width))
 
-                    dpg.add_image_series('camera_1', (0, 0), (self.width, self.width), parent="bruh_")
+                def update_points(sender, number):
+                    val = dpg.get_value(sender)
+                    n = f"line {number // 2}"
+                    k = number % 2
+                    bef = dpg.get_value(n)
+                    bef[0][k], bef[1][k] = val
+                    dpg.set_value(n, bef)
 
+                def update_points_(sender, number):
+                    val = dpg.get_value(sender)
+                    print(val)
+
+                with dpg.plot(tag="plot_camera", query=True, min_query_rects=0, max_query_rects=2,
+                              query_color=(0, 255, 0, 100), **_pltkwargs):
+                    # Add image series first
+                    dpg.add_drag_point(tag="point0", default_value=[0.5 * self.width, 0.5 * self.width],
+                                       color=[255, 0, 0, 255], callback=lambda sender: update_points(sender, 0))
+                    dpg.add_drag_point(tag="point1", default_value=[0.4 * self.width, 0.5 * self.width],
+                                       color=[255, 0, 0, 255], callback=lambda sender: update_points(sender, 1))
+                    dpg.add_drag_point(tag="point2", default_value=[0.5 * self.width, 0.5 * self.width],
+                                       color=[255, 0, 0, 255], callback=lambda sender: update_points(sender, 2))
+                    dpg.add_drag_point(tag="point3", default_value=[0.4 * self.width, 0.5 * self.width],
+                                       color=[255, 0, 0, 255], callback=lambda sender: update_points(sender, 3))
+                    dpg.add_drag_point(tag="point4", default_value=[0.5 * self.width, 0.5 * self.width],
+                                       color=[255, 0, 0, 255], callback=lambda sender: update_points_(sender, 4))
+                    dpg.add_drag_point(tag="point5", default_value=[0.4 * self.width, 0.5 * self.width],
+                                       color=[255, 0, 0, 255], callback=lambda sender: update_points_(sender, 5))
+
+                    dpg.add_plot_axis(dpg.mvXAxis, tag="master xax")
+                    dpg.add_plot_axis(dpg.mvYAxis, tag="master yax")
+                    dpg.add_line_series([self.width], [self.width], label="", parent="master yax")
+                    dpg.add_line_series([self.width], [0], label="", parent="master yax")
+                    dpg.add_line_series([0], [self.width], label="", parent="master yax")
+                    dpg.add_line_series([0, 0], [0, 0], label="левая прямая", parent="master yax", tag="line 0")
+                    dpg.add_line_series([0, 0], [0, 0], label="правая прямая", parent="master yax", tag="line 1")
+                    dpg.set_axis_limits_constraints('master xax', 0, self.width)
+                    dpg.set_axis_limits_constraints('master yax', 0, self.width)
+            dpg.set_axis_limits("master xax", 0, self.width)
+            dpg.set_axis_limits("master yax", 0, self.width)
+
+            def _loosen_axes_lims():
+                dpg.set_axis_limits_auto("master xax")
+                dpg.set_axis_limits_auto("master yax")
+
+            # _loosen_axes_lims()
+            dpg.set_frame_callback(1, _loosen_axes_lims)
+            with dpg.theme() as masterplot_theme:
+                with dpg.theme_component(dpg.mvPlot):
+                    dpg.add_theme_color(dpg.mvPlotCol_PlotBg, (0, 0, 0, 0), category=dpg.mvThemeCat_Plots)
+                    dpg.add_theme_color(dpg.mvPlotCol_FrameBg, (0, 0, 0, 0), category=dpg.mvThemeCat_Plots)
+            dpg.bind_item_theme("plot_camera", masterplot_theme)
+
+            def sync_axes(_, __, user_data):
+                """
+                obtain master plot's axes range, using which we set the axes range of slave plot
+                """
+                xax_master, yax_master, xax_slave, yax_slave = user_data
+                params_master = xmin_mst, xmax_mst, ymin_mst, ymax_mst = *dpg.get_axis_limits(
+                    xax_master), *dpg.get_axis_limits(yax_master)
+                params_slave = *dpg.get_axis_limits(xax_slave), *dpg.get_axis_limits(yax_slave)
+                if not params_master == params_slave:
+                    dpg.set_axis_limits(xax_slave, xmin_mst, xmax_mst)
+                    dpg.set_axis_limits(yax_slave, ymin_mst, ymax_mst)
+
+            with dpg.item_handler_registry(tag="master-slave sync hreg"):
+                dpg.add_item_visible_handler(callback=sync_axes,
+                                             user_data=("master xax", "master yax", "slave xax", "slave yax"))
+            dpg.bind_item_handler_registry("plot_camera", "master-slave sync hreg")
             with dpg.group(horizontal=False):
                 dpg.add_button(label="Z1", callback=lambda: self.move_z1(True))
                 dpg.add_button(label="Рыскание", callback=lambda: self.rotate_z(True))
-                dpg.add_button(label="Увеличение", callback=self.set_pix_per_step, user_data=True)
+                # dpg.add_button(label="Увеличение", callback=self.set_pix_per_step, user_data=True)
 
                 dpg.add_button(label="Z2", callback=lambda: self.move_z2(True))
                 dpg.add_button(label="Y", callback=lambda: self.move_y(True))
