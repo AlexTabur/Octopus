@@ -11,7 +11,7 @@ import axis_ctrl
 from camera.CameraParams_header import *
 from camera.MvCameraControl_class import *
 from camera.MvErrorDefine_const import *
-from camera.scratch import get_y, Mono_numpy, display_img, isHorizontal
+from camera.scratch import get_y, Mono_numpy, display_img, isHorizontal, get_b, get_k
 from core.gui_helper import *
 from core.utils import *
 
@@ -201,6 +201,10 @@ def get_axis_params():
 class MotionGUI:
 
     def __init__(self):
+        self.ax = 0
+        self.ay = 0
+        self.bx = 0
+        self.by = 0
         self.delta_y = 0
         self.pix_per_step_b = 500
         self.lines_2 = None
@@ -296,10 +300,7 @@ class MotionGUI:
         if axis != -1:
             context.current_axis = axis
             if context.zplatform.is_connected:
-                # print("moving on axis = ", abs(context.current_axis))
                 context.zplatform.move(axis, d * 8)
-            else:
-                print("not connected")
 
     def rotate_z(self, right):
         if right:
@@ -313,10 +314,7 @@ class MotionGUI:
         if axis != -1:
             context.current_axis = axis
             if context.zplatform.is_connected:
-                print(angle1)
                 context.zplatform.move(axis, STEP_PER_GRAD_Z * angle1)
-            else:
-                print("not connected")
 
     def move_z1(self, right):
         self.moving_z1 = True
@@ -334,14 +332,13 @@ class MotionGUI:
         self.moving_right = right
         offset = 100
         if right:
-            self.move_(1, ((self.v2b - self.v1b) - self.delta_y*self.v1k)/self.pix_per_step_b - offset)
+            self.move_(1, ((self.v2b - self.v1b) - self.delta_y * self.v1k) / self.pix_per_step_b - offset)
         else:
-            self.move_(1, ((self.v2b - self.v1b) - self.delta_y*self.v1k)/self.pix_per_step_b - offset)
+            self.move_(1, ((self.v2b - self.v1b) - self.delta_y * self.v1k) / self.pix_per_step_b - offset)
 
     def set_pix_per_step(self, sender, app_data, user_data):
         prev_x = (self.v2b - self.v1b)
-        print("prev: ", prev_x)
-        delta_x = 200*8
+        delta_x = 200 * 8
         if user_data:
             axis = context.axis[context.x2_line_i]['idx']
         else:
@@ -349,271 +346,305 @@ class MotionGUI:
         if axis != -1:
             context.current_axis = axis
             if context.zplatform.is_connected:
-                # print("moving on axis = ", abs(context.current_axis))
                 context.zplatform.move(axis, -delta_x)
-
-            else:
-                print("not connected")
 
         sleep(3)
         x = (self.v2b - self.v1b)
-        self.pix_per_step = np.abs(x - prev_x) / delta_x / (self.v1k**2+1)
+        self.pix_per_step = np.abs(x - prev_x) / delta_x / (self.v1k ** 2 + 1)
         self.pix_per_step_b = np.abs(x - prev_x) / delta_x
-        print("pix per step", self.pix_per_step)
-
-
 
     def run_task(self):
         n_w, n_h = 5120, 5120
+        sleep(1)
+        a = []
+
+        def func():
+
+            x1, y1, x2, y2 = rois[0][0], rois[0][1], rois[0][2], rois[0][3]
+            x3, y3, x4, y4 = rois[1][0], rois[1][1], rois[1][2], rois[1][3]
+            cx = int((self.bx + self.ax) // 2)
+            cy = int((self.by + self.ay) // 2)
+            zoom = 5120 / self.width
+            x1, x2, x3, x4 = int(x1 * zoom), int(x2 * zoom), int(x3 * zoom), int(x4 * zoom)
+            y1, y2, y3, y4 = int(5120 - y1 * zoom), int(5120 - y2 * zoom), int(5120 - y3 * zoom), int(
+                5120 - y4 * zoom)
+            x1, x2 = min(x1, x2), max(x1, x2)
+            x3, x4 = min(x3, x4), max(x3, x4)
+            y1, y2 = min(y1, y2), max(y1, y2)
+            y3, y4 = min(y3, y4), max(y3, y4)
+
+            resized = cv2.cvtColor(final, cv2.COLOR_RGB2GRAY)
+            chip2_img = resized[y3:y4, x3:x4].copy()
+            chip_img = resized[y1:y2, x1:x2].copy()
+            th1 = dpg.get_value("th1")
+            ret, chip2_img = cv2.threshold(chip2_img, 140, 255, cv2.THRESH_BINARY)
+            kernel = np.ones((3,3), np.uint8)
+            # chip2_img = cv2.erode(chip2_img, kernel, iterations=1)
+
+            # edges_img = cv2.Canny(chip2_img, th3, th4)
+
+            # chip_img *= 255
+            # chip_img = cv2.cvtColor(chip_img, cv2.COLOR_GRAY2RGB)
+            # cv2.normalize(chip_img, chip_img, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
+            # cv2.normalize(chip2_img, chip2_img, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
+
+            th2 = dpg.get_value("th2")
+            th3 = dpg.get_value("th3")  # 49, яркость 1
+            th4 = dpg.get_value("th4")
+            detector_left = cv2.ximgproc.createFastLineDetector(length_threshold=36,
+                                                                distance_threshold=6,
+                                                                canny_th1=175,
+                                                                canny_th2=212,
+                                                                canny_aperture_size=3, do_merge=True)
+
+            detector_right = cv2.ximgproc.createFastLineDetector(length_threshold=30,
+                                                                 distance_threshold=4,
+                                                                 canny_th1=204,
+                                                                 canny_th2=229,
+                                                                 canny_aperture_size=3, do_merge=True)
+            # ret, chip_img = cv2.threshold(chip_img, th3, 255, cv2.THRESH_BINARY)
+            # ret, chip2_img = cv2.threshold(chip2_img, th3, 255, cv2.THRESH_BINARY)
+            self.lines_ = detector_left.detect(chip_img)
+            self.lines_2 = detector_right.detect(chip2_img)
+            chip2_img = cv2.cvtColor(chip2_img, cv2.COLOR_GRAY2RGB)
+            # final[y3:y4, x3:x4] = chip2_img
+            horizontal_1_x = []
+            horizontal_1_y = []
+            horizontal_2_x = []
+            horizontal_2_y = []
+            if self.lines_ is not None:
+                if len(self.lines_) > 1:
+                    for line in self.lines_:
+                        line_ = line[0]
+                        if isHorizontal(line_):
+                            if line_[0] < line_[2]:
+                                horizontal_1_x.append(line_[0])
+                                horizontal_1_y.append(line_[1])
+                                horizontal_1_x.append(line_[2])
+                                horizontal_1_y.append(line_[3])
+                            else:
+                                horizontal_1_x.append(line_[2])
+                                horizontal_1_y.append(line_[3])
+                                horizontal_1_x.append(line_[0])
+                                horizontal_1_y.append(line_[1])
+            if self.lines_2 is not None:
+                if len(self.lines_2) > 1:
+                    for line in self.lines_2:
+                        line__ = line[0]
+                        if isHorizontal(line__):
+                            if line__[0] < line__[2]:
+                                horizontal_2_x.append(line__[0])
+                                horizontal_2_y.append(line__[1])
+                                horizontal_2_x.append(line__[2])
+                                horizontal_2_y.append(line__[3])
+                            else:
+                                horizontal_2_x.append(line__[2])
+                                horizontal_2_y.append(line__[3])
+                                horizontal_2_x.append(line__[0])
+                                horizontal_2_y.append(line__[1])
+
+            for i in range(len(horizontal_1_x)):
+                horizontal_1_x[i] += x1
+            for i in range(len(horizontal_1_y)):
+                horizontal_1_y[i] += y1
+            for i in range(len(horizontal_2_x)):
+                horizontal_2_x[i] += x3
+            for i in range(len(horizontal_2_y)):
+                horizontal_2_y[i] += y3
+
+            # new
+            # cv2.threshold(resized, 180, 255, cv2.THRESH_TOZERO_INV, dst=resized)
+            chip2_img = resized[y3:y4, x3:x4].copy()
+            chip_img = resized[y1:y2, x1:x2].copy()
+
+            # ret, chip_img = cv2.threshold(chip_img, th3, 255, cv2.THRESH_BINARY)
+            # ret, chip2_img = cv2.threshold(chip2_img, th5, 255, cv2.THRESH_BINARY)
+            # ret, chip2_img = cv2.threshold(chip2_img, th3, 255, cv2.THRESH_BINARY)
+            # cnt, hierarchy = cv2.findContours(chip2_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+            # if hierarchy is not None:
+            #     print(hierarchy)
+            #     hull = cv2.convexHull(cnt)
+            #     cv2.drawContours(chip2_img, cnt, -1, (0,0,255), 3)
+            #     # chip2_img = cv2.adaptiveThreshold(chip2_img, 255, cv2.CALIB_CB_ADAPTIVE_THRESH, cv2.THRESH_BINARY, 11, th3)
+
+            self.lines_3 = detector_left.detect(chip_img)
+            self.lines_4 = detector_right.detect(chip2_img)
+            vertical_1_x = []
+            vertical_1_y = []
+            vertical_2_x = []
+            vertical_2_y = []
+            if self.lines_3 is not None:
+                if len(self.lines_3) > 1:
+                    for line in self.lines_3:
+                        line_ = line[0]
+                        if isHorizontal(line_):
+                            pass
+                        else:
+                            vertical_1_x.append(line_[0])
+                            vertical_1_y.append(line_[1])
+                            vertical_1_x.append(line_[2])
+                            vertical_1_y.append(line_[3])
+            if self.lines_4 is not None:
+                if len(self.lines_4) > 1:
+                    for line in self.lines_4:
+                        line__ = line[0]
+                        if isHorizontal(line__):
+                            pass
+                        else:
+                            vertical_2_x.append(line__[0])
+                            vertical_2_y.append(line__[1])
+                            vertical_2_x.append(line__[2])
+                            vertical_2_y.append(line__[3])
+
+            for i in range(len(vertical_1_x)):
+                vertical_1_x[i] += x1
+            for i in range(len(vertical_1_y)):
+                vertical_1_y[i] += y1
+            for i in range(len(vertical_2_x)):
+                vertical_2_x[i] += x3
+            for i in range(len(vertical_2_y)):
+                vertical_2_y[i] += y3
+            if len(vertical_1_x) > 0:
+                m, b = np.polyfit(vertical_1_y, vertical_1_x, 1)
+                self.angle1 = np.atan(m) * 180 / np.pi
+                cv2.line(final, (int(get_y(0, m, b)), 0),
+                         (int(get_y(int(width), m, b)), int(width)),
+                         (0, 255, 0),
+                         line_thickness)  # 0.1 * self.val
+                self.v1b = b
+                self.v1k = m
+            if len(vertical_2_x) > 0:
+                # cur_max_length = 0
+                # best_index = 0
+                # for i in range(0, len(vertical_2_x)//2, 2):
+                #     line_length = ((vertical_2_x[i]-vertical_2_x[i+1])**2+(vertical_2_y[i]-vertical_2_y[i+1])**2)**0.5
+                #     if cur_max_length < line_length:
+                #         cur_max_length = line_length
+                #         best_index = i
+                # print(best_index)
+                m, b = np.polyfit(vertical_2_y, vertical_2_x, 1)  # [best_index: best_index+2]
+                self.angle2 = np.atan(m) * 180 / np.pi
+                cv2.line(final, (int(get_y(0, m, b)), 0),
+                         (int(get_y(int(width), m, b)), int(width)),
+                         (0, 255, 0),
+                         line_thickness)  # 0.1 * self.val
+                self.v2b = b
+                self.v2k = m
+            # end new
+            for i in range(0, len(horizontal_1_x), 2):
+                cv2.line(final, (int(horizontal_1_x[i]), int(horizontal_1_y[i])),
+                         (int(horizontal_1_x[i + 1]), int(horizontal_1_y[i + 1])),
+                         (255, 0, 0), line_thickness)  # 0.1 * self.val
+            for i in range(0, len(horizontal_2_x), 2):
+                cv2.line(final, (int(horizontal_2_x[i]), int(horizontal_2_y[i])),
+                         (int(horizontal_2_x[i + 1]), int(horizontal_2_y[i + 1])),
+                         (255, 0, 0), line_thickness)  # 0.05 * self.val
+            if len(vertical_2_x) > 4:
+                i = 2 * 1
+                self.ax, self.ay = int(vertical_2_x[i]), int(vertical_2_y[i])
+                self.bx, self.by = int(vertical_2_x[i + 1]), int(vertical_2_y[i + 1])
+            # if len(horizontal_2_x) > 4:
+            #   self.ax, self.ay = int(horizontal_2_x[0]), int(horizontal_2_y[0])
+            #   self.bx, self.by = int(horizontal_2_x[2]), int(horizontal_2_y[2])
+            for i in range(0, len(vertical_1_x), 2):
+                cv2.line(final, (int(vertical_1_x[i]), int(vertical_1_y[i])),
+                         (int(vertical_1_x[i + 1]), int(vertical_1_y[i + 1])),
+                         (255, 0, 0), line_thickness)  # 0.1 * self.val
+            for i in range(0, len(vertical_2_x), 2):
+                cv2.line(final, (int(vertical_2_x[i]), int(vertical_2_y[i])),
+                         (int(vertical_2_x[i + 1]), int(vertical_2_y[i + 1])),
+                         (255, 0, 0), line_thickness)  # 0.05 * self.val
+            x_arr = []
+            for i in range(0, len(horizontal_2_y), 2):
+                line = [horizontal_2_x[i], horizontal_2_y[i], horizontal_2_x[i + 1], horizontal_2_y[i + 1]]
+                # print(get_b(line))
+                # print(get_k(line))
+
+            # cv2.circle(final, (self.ax, self.ay), 50, (255, 0, 0), line_thickness * 2)
+            # cv2.circle(final, (self.bx, self.by), 50, (255, 0, 0), line_thickness * 2)
+            # cv2.circle(final, (cx, cy), 50, (255, 0, 0), line_thickness * 2)
+            # cv2.circle(final, (x2, y2), int(2/100*width), (255, 255, 0), line_thickness)
+            # cv2.circle(final, (x3, y3), int(2/100*width), (255, 255, 0), line_thickness)
+            # cv2.circle(final, (x4, y4), int(2/100*width), (255, 255, 0), line_thickness)
+
+            # cv2.circle(final, (self.y1, y4), int(2/100*self.width), (255, 255, 0), int(1*self.width/1000))
+
+            return final, horizontal_1_x, horizontal_1_y, vertical_1_x, horizontal_2_y, vertical_2_x
+
+        def func2():
+            if self.moving_z1:
+                if self.moving_right:
+                    if len(vertical_2_x) < 1:
+                        self.move_(3, 3)
+                    else:
+                        self.moving_z1 = False
+                        self.move_(3, 20)
+                else:
+                    if len(vertical_1_x) < 1:
+                        self.move_(3, 1)
+                    else:
+                        if len(horizontal_1_y) > 0:
+                            min_y = np.min(horizontal_1_y)
+                            max_y = np.max(horizontal_1_y)
+                            self.min_y = min(min_y, self.min_y)
+                            self.max_y = max(max_y, self.max_y)
+                            self.center_y = (self.max_y + self.min_y) / 2
+                            self.y1 = self.center_y
+                        self.moving_z1 = False
+                        self.move_(3, 20)
+
+            if self.moving_z2:
+                self.move_(3, 700)
+                self.moving_z2 = False
+
+            if self.moving_y:
+                min_dy = 1000
+                if self.moving_right:
+                    if len(horizontal_2_y) > 1:
+                        for i in range(0, len(horizontal_1_y), 2):
+                            cv2.line(final, (int(horizontal_1_x[i]), int(horizontal_1_y[i])),
+                                     (int(horizontal_1_x[i + 1]), int(horizontal_1_y[i + 1])),
+                                     (255, 255, 0), line_thickness)  # 0.2 * self.val
+                            j = (len(horizontal_2_y) - 1) // 4 * 2
+                            dy = horizontal_2_y[j] - horizontal_1_y[i]
+                            if abs(dy) < abs(min_dy):
+                                min_dy = dy
+                else:
+                    if len(horizontal_1_y) > 1:
+                        for i in range(0, len(horizontal_2_y), 2):
+                            dy = horizontal_2_y[i] - self.y1
+                            if abs(dy) < abs(min_dy):
+                                min_dy = dy
+                if 1000 > abs(min_dy):
+                    self.delta_y = min_dy
+                    self.y1 -= min_dy
+                    self.move_(2, min_dy / self.pix_per_step - 20)
+                    self.moving_y = False
+                    self.move_(3, 400 - 200 + 34)
+            if not self.moving_y:
+                cv2.line(final, (int(0), int(self.y1)),
+                         (int(500), int(self.y1)),
+                         (255, 255, 0), line_thickness)
 
         while True:
             self.obj_cam.MV_CC_GetOneFrameTimeout(self.buf_grab_image, self.buf_grab_image_size, self.stFrameInfo)
             resized = Mono_numpy(self.buf_grab_image, n_w, n_h)
-            th3 = dpg.get_value("th3")
+            width = 5120
+            line_thickness = max(int(0.1 * width / 1000), 1)
+            if len(a) > 2:
+                resized = np.mean(a, axis=0)
+                a = []
+                final = cv2.cvtColor(resized.astype(np.uint8), cv2.COLOR_GRAY2RGB)
+                rois = dpg.get_plot_query_rects("plot_camera")
+                if len(rois) == 2:
+                    final, horizontal_1_x, horizontal_1_y, vertical_1_x, horizontal_2_y, vertical_2_x = func()
+                    func2()
+                # z right -8002.0 -2402.0 -802.0 bruh 135.0
+                display_img("camera_1", cv2.resize(final, (self.width, self.width)))
 
-            #ret, final = cv2.threshold(resized, th3, 255, cv2.THRESH_BINARY)
-            # final = cv2.cvtColor(final, cv2.COLOR_GRAY2RGB)
-            final = cv2.cvtColor(resized, cv2.COLOR_GRAY2RGB)
-            rois = dpg.get_plot_query_rects("plot_camera")
-            if len(rois) == 2:
-                x1, y1, x2, y2 = rois[0][0], rois[0][1], rois[0][2], rois[0][3]
-                x3, y3, x4, y4 = rois[1][0], rois[1][1], rois[1][2], rois[1][3]
-                zoom = 5120 / self.width
-                x1, x2, x3, x4 = int(x1 * zoom), int(x2 * zoom), int(x3 * zoom), int(x4 * zoom)
-                y1, y2, y3, y4 = int(5120 - y1 * zoom), int(5120 - y2 * zoom), int(5120 - y3 * zoom), int(
-                    5120 - y4 * zoom)
-                x1, x2 = min(x1, x2), max(x1, x2)
-                x3, x4 = min(x3, x4), max(x3, x4)
-                y1, y2 = min(y1, y2), max(y1, y2)
-                y3, y4 = min(y3, y4), max(y3, y4)
-
-                th1 = dpg.get_value("th1")
-                th2 = dpg.get_value("th2")
-                th4 = dpg.get_value("th4")
-
-                width2 = 5120  # 1000 # min(int((x2-x1)**2+(y2-y1)**2), int((x4-x3)**2+(y4-y3)**2))
-                width = 5120  # int(x2-x1)
-                minLineLength = int(0.5 / 100 * width2)
-                maxLineGap = int(0.02 / 100 * width2)
-                chip2_img = resized[y3:y4, x3:x4].copy()
-                chip_img = resized[y1:y2, x1:x2].copy()
-                line_thickness = max(int(0.1 * width / 1000), 1)
-
-
-                # ret, chip_img = cv2.threshold(chip_img, 256//3, 255, cv2.THRESH_BINARY)
-
-                # chip_img *= 255
-                # chip_img = cv2.cvtColor(chip_img, cv2.COLOR_GRAY2RGB)
-                # print(chip_img)
-                # cv2.normalize(chip_img, chip_img, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
-                # cv2.normalize(resized, resized, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
-                detector = cv2.ximgproc.createFastLineDetector(length_threshold=minLineLength,
-                                                               distance_threshold=maxLineGap,
-                                                               canny_th1=th1,
-                                                               canny_th2=th2,
-                                                               canny_aperture_size=5, do_merge=True)
-
-                ret, chip_img = cv2.threshold(chip_img, th3, 255, cv2.THRESH_BINARY)
-                ret, chip2_img = cv2.threshold(chip2_img, th3, 255, cv2.THRESH_BINARY)
-                self.lines_ = detector.detect(chip_img)
-                self.lines_2 = detector.detect(chip2_img)
-                horizontal_1_x = []
-                horizontal_1_y = []
-                horizontal_2_x = []
-                horizontal_2_y = []
-                if self.lines_ is not None:
-                    if len(self.lines_) > 1:
-                        for line in self.lines_:
-                            line_ = line[0]
-                            if isHorizontal(line_):
-                                if line_[0] < line_[2]:
-                                    horizontal_1_x.append(line_[0])
-                                    horizontal_1_y.append(line_[1])
-                                    horizontal_1_x.append(line_[2])
-                                    horizontal_1_y.append(line_[3])
-                                else:
-                                    horizontal_1_x.append(line_[2])
-                                    horizontal_1_y.append(line_[3])
-                                    horizontal_1_x.append(line_[0])
-                                    horizontal_1_y.append(line_[1])
-                if self.lines_2 is not None:
-                    if len(self.lines_2) > 1:
-                        for line in self.lines_2:
-                            line__ = line[0]
-                            if isHorizontal(line__):
-                                if line__[0] < line__[2]:
-                                    horizontal_2_x.append(line__[0])
-                                    horizontal_2_y.append(line__[1])
-                                    horizontal_2_x.append(line__[2])
-                                    horizontal_2_y.append(line__[3])
-                                else:
-                                    horizontal_2_x.append(line__[2])
-                                    horizontal_2_y.append(line__[3])
-                                    horizontal_2_x.append(line__[0])
-                                    horizontal_2_y.append(line__[1])
-
-                for i in range(len(horizontal_1_x)):
-                    horizontal_1_x[i] += x1
-                for i in range(len(horizontal_1_y)):
-                    horizontal_1_y[i] += y1
-                for i in range(len(horizontal_2_x)):
-                    horizontal_2_x[i] += x3
-                for i in range(len(horizontal_2_y)):
-                    horizontal_2_y[i] += y3
-
-                # new
-                th3 = 53 # dpg.get_value("th3")  # 49, яркость 1
-                chip2_img = resized[y3:y4, x3:x4].copy()
-                chip_img = resized[y1:y2, x1:x2].copy()
-                ret, chip_img = cv2.threshold(chip_img, th3, 255, cv2.THRESH_BINARY)
-                ret, chip2_img = cv2.threshold(chip2_img, th3, 255, cv2.THRESH_BINARY)
-                self.lines_3 = detector.detect(chip_img)
-                self.lines_4 = detector.detect(chip2_img)
-                vertical_1_x = []
-                vertical_1_y = []
-                vertical_2_x = []
-                vertical_2_y = []
-
-                if self.lines_3 is not None:
-                    if len(self.lines_3) > 1:
-                        for line in self.lines_3:
-                            line_ = line[0]
-                            if isHorizontal(line_):
-                                pass
-                            else:
-                                vertical_1_x.append(line_[0])
-                                vertical_1_y.append(line_[1])
-                                vertical_1_x.append(line_[2])
-                                vertical_1_y.append(line_[3])
-
-                if self.lines_4 is not None:
-                    if len(self.lines_4) > 1:
-                        for line in self.lines_4:
-                            line__ = line[0]
-                            if isHorizontal(line__):
-                                pass
-                            else:
-                                vertical_2_x.append(line__[0])
-                                vertical_2_y.append(line__[1])
-                                vertical_2_x.append(line__[2])
-                                vertical_2_y.append(line__[3])
-
-                for i in range(len(vertical_1_x)):
-                    vertical_1_x[i] += x1
-                for i in range(len(vertical_1_y)):
-                    vertical_1_y[i] += y1
-                for i in range(len(vertical_2_x)):
-                    vertical_2_x[i] += x3
-                for i in range(len(vertical_2_y)):
-                    vertical_2_y[i] += y3
-                if len(vertical_1_x) > 0:
-                    m, b = np.polyfit(vertical_1_y, vertical_1_x, 1)
-                    self.angle1 = np.atan(m) * 180 / np.pi
-                    cv2.line(final, (int(get_y(0, m, b)), 0),
-                             (int(get_y(int(width), m, b)), int(width)),
-                             (0, 255, 0),
-                             line_thickness)  # 0.1 * self.val
-                    self.v1b = b
-                    self.v1k = m
-                if len(vertical_2_x) > 0:
-                    # cur_max_length = 0
-                    # best_index = 0
-                    # for i in range(0, len(vertical_2_x)//2, 2):
-                    #     line_length = ((vertical_2_x[i]-vertical_2_x[i+1])**2+(vertical_2_y[i]-vertical_2_y[i+1])**2)**0.5
-                    #     if cur_max_length < line_length:
-                    #         cur_max_length = line_length
-                    #         best_index = i
-                    # print(best_index)
-                    m, b = np.polyfit(vertical_2_y, vertical_2_x, 1)  # [best_index: best_index+2]
-                    self.angle2 = np.atan(m) * 180 / np.pi
-                    cv2.line(final, (int(get_y(0, m, b)), 0),
-                             (int(get_y(int(width), m, b)), int(width)),
-                             (0, 255, 0),
-                             line_thickness)  # 0.1 * self.val
-                    self.v2b = b
-                    self.v2k = m
-                # end new
-                for i in range(0, len(horizontal_1_x), 2):
-                    cv2.line(final, (int(horizontal_1_x[i]), int(horizontal_1_y[i])),
-                             (int(horizontal_1_x[i + 1]), int(horizontal_1_y[i + 1])),
-                             (255, 0, 0), line_thickness)  # 0.1 * self.val
-                for i in range(0, len(horizontal_2_x), 2):
-                    cv2.line(final, (int(horizontal_2_x[i]), int(horizontal_2_y[i])),
-                             (int(horizontal_2_x[i + 1]), int(horizontal_2_y[i + 1])),
-                             (255, 0, 0), line_thickness)  # 0.05 * self.val
-
-                # for i in range(0, len(vertical_1_x), 2):
-                #     cv2.line(final, (int(vertical_1_x[i]), int(vertical_1_y[i])),
-                #              (int(vertical_1_x[i + 1]), int(vertical_1_y[i + 1])),
-                #              (255, 0, 0), line_thickness)  # 0.1 * self.val
-                # for i in range(0, len(vertical_2_x), 2):
-                #     cv2.line(final, (int(vertical_2_x[i]), int(vertical_2_y[i])),
-                #              (int(vertical_2_x[i + 1]), int(vertical_2_y[i + 1])),
-                #              (255, 0, 0), line_thickness)  # 0.05 * self.val
-
-                if self.moving_z1:
-                    if self.moving_right:
-                        if len(vertical_2_x) < 1:
-                            self.move_(3, 3)
-
-                        else:
-                            self.moving_z1 = False
-                            self.move_(3, 20)
-                    else:
-                        if len(vertical_1_x) < 1:
-                            self.move_(3, 1)
-                        else:
-                            if len(horizontal_1_y) > 0:
-                                min_y = np.min(horizontal_1_y)
-                                max_y = np.max(horizontal_1_y)
-                                self.min_y = min(min_y, self.min_y)
-                                self.max_y = max(max_y, self.max_y)
-                                self.center_y = (self.max_y + self.min_y) / 2
-                                self.y1 = self.center_y
-                            self.moving_z1 = False
-                            self.move_(3, 20)
-
-                if self.moving_z2:
-                    self.move_(3, 700)
-                    self.moving_z2 = False
-
-                if self.moving_y:
-                    min_dy = 1000
-                    if self.moving_right:
-                        if len(horizontal_2_y) > 1:
-                            for i in range(0, len(horizontal_1_y), 2):
-                                cv2.line(final, (int(horizontal_1_x[i]), int(horizontal_1_y[i])),
-                                         (int(horizontal_1_x[i + 1]), int(horizontal_1_y[i + 1])),
-                                         (255, 255, 0), line_thickness)  # 0.2 * self.val
-                                j = (len(horizontal_2_y) - 1) // 4 * 2
-                                dy = horizontal_2_y[j] - horizontal_1_y[i]
-                                if abs(dy) < abs(min_dy):
-                                    min_dy = dy
-                    else:
-                        if len(horizontal_1_y) > 1:
-                            for i in range(0, len(horizontal_2_y), 2):
-                                dy = horizontal_2_y[i] - self.y1
-                                if abs(dy) < abs(min_dy):
-                                    min_dy = dy
-                    print(min_dy)
-                    if 1000 > abs(min_dy):
-                        self.delta_y = min_dy
-                        self.y1 -= min_dy
-                        self.move_(2, min_dy / self.pix_per_step - 127 / 2)
-                        self.moving_y = False
-                        self.move_(3, 400 - 200 + 34)
-                # cv2.circle(final, (x1, y1), int(2/100*width), (255, 255, 0), line_thickness)
-                # cv2.circle(final, (x2, y2), int(2/100*width), (255, 255, 0), line_thickness)
-                # cv2.circle(final, (x3, y3), int(2/100*width), (255, 255, 0), line_thickness)
-                # cv2.circle(final, (x4, y4), int(2/100*width), (255, 255, 0), line_thickness)
-
-                # cv2.circle(final, (self.y1, y4), int(2/100*self.width), (255, 255, 0), int(1*self.width/1000))
-                if not self.moving_y:
-                    cv2.line(final, (int(0), int(self.y1)),
-                         (int(500), int(self.y1)),
-                         (255, 255, 0), line_thickness)
-            # z right -8002.0 -2402.0 -802.0 bruh 135.0
-            display_img("camera_1", cv2.resize(final, (self.width, self.width)))
+            else:
+                a.append(resized)
 
     @staticmethod
     def loop():
@@ -910,15 +941,15 @@ class MotionGUI:
                 dpg.add_button(label="Y", callback=lambda: self.move_y(False))
                 dpg.add_button(label="X", callback=lambda: self.move_x(False))
             with dpg.group(horizontal=False):
-                dpg.add_slider_int(label="left", default_value=int(255 * 0.5), max_value=255, min_value=1, tag="th3",
+                dpg.add_slider_int(label="length", default_value=int(255 * 0.5), max_value=255, min_value=1, tag="th1",
                                    width=250)
-                dpg.add_slider_int(label="right", default_value=int(255 * 0.5), max_value=255, min_value=1, tag="th4",
+                dpg.add_slider_int(label="distance", default_value=int(255 * 0.5), max_value=255, min_value=1,
+                                   tag="th2",
                                    width=250)
-                dpg.add_slider_int(label="", default_value=int(255 * 3.7), max_value=255 * 4, min_value=10, tag="th1",
-                                   width=250)
-                dpg.add_slider_int(label="", default_value=int(255 * 3.9), max_value=255 * 4, min_value=10, tag="th2",
-                                   width=250)
-                with dpg.plot(height=400, width=400, query=True, min_query_rects=0, max_query_rects=2, tag="plot_camera", query_color=(0,255,0,100)):
+                dpg.add_slider_int(label="", default_value=int(255 * 0.8), min_value=1, max_value=255, tag="th3", width=250)
+                dpg.add_slider_int(label="", default_value=int(255 * 0.9), min_value=1, max_value=255, tag="th4", width=250)
+                with dpg.plot(height=400, width=400, query=True, min_query_rects=0, max_query_rects=2,
+                              tag="plot_camera", query_color=(0, 255, 0, 100)):
                     dpg.add_plot_axis(dpg.mvXAxis, label='x', tag="bruh_")
                     dpg.add_plot_axis(dpg.mvYAxis, label='y', tag="bruh_2")
                     dpg.set_axis_limits_constraints('bruh_', 0, self.width)
