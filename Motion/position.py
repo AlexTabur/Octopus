@@ -46,7 +46,7 @@ class Positions:
                         with dpg.table_cell():
                             dpg.add_text(default_value="***", tag=context.axis[context.x1_line_i]['name'])
                         with dpg.table_cell():
-                            dpg.add_text(default_value="")
+                            dpg.add_text()
                         with dpg.table_cell():
                             dpg.add_text(default_value="         ")
                         with dpg.table_cell():

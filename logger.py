@@ -9,18 +9,70 @@ context = Context()
 
 class Logger:
 
-    def __init__(self):
+    def __init__(self, parent=None, w_width=1, w_heigth=1, w_x=0, w_y=1):
         self.log_level = 0
         self.filter = 0xf
         self._auto_scroll = True
         self.filter_id = None
-        # if parent:
-        #     self.window_id = parent
-        # else:
-        #     self.window_id = dpg.add_window(label="Log", pos=(w_x, w_y), width=500, height=500,
-        #                                     no_close=True, no_collapse=True, autosize=True)
+        if parent:
+            self.window_id = parent
+        else:
+            self.window_id = dpg.add_window(label="Log", pos=(w_x, w_y), width=w_width, height=w_heigth,
+                                            no_close=True, no_collapse=True, autosize=True)
         self.count = 0
         self.flush_count = 1000
+
+        with dpg.group(horizontal=True, parent=self.window_id):
+            with dpg.group():
+                with dpg.group(horizontal=True):
+                    dpg.add_checkbox(label="Auto-scroll", default_value=True,
+                                     callback=lambda sender: self.auto_scroll(dpg.get_value(sender)))
+                dpg.add_spacer(height=5)
+                with dpg.group():
+                    dpg.add_checkbox(label=filt_items[0], callback=self.set_filter_callback, user_data=0x01,
+                                     default_value=True)
+                    dpg.add_checkbox(label=filt_items[1], callback=self.set_filter_callback, user_data=0x02,
+                                     default_value=True)
+                    dpg.add_checkbox(label=filt_items[2], callback=self.set_filter_callback, user_data=0x04,
+                                     default_value=True)
+                    dpg.add_checkbox(label=filt_items[3], callback=self.set_filter_callback, user_data=0x08,
+                                     default_value=True)
+                    dpg.add_checkbox(label=filt_items[4], callback=self.set_filter_callback, user_data=0x10,
+                                     default_value=True)
+                dpg.add_spacer(height=5)
+                dpg.add_button(label="Clear", width=200, height=30,
+                               callback=lambda: dpg.delete_item(self.filter_id, children_only=True))
+
+            self.child_id = dpg.add_child_window(autosize_x=True, autosize_y=True)
+            self.filter_id = dpg.add_filter_set(parent=self.child_id, )
+            flt = "[TRACE]"
+            for f in filt_items:
+                flt += ',[' + f + ']'
+            dpg.set_value(self.filter_id, flt)
+
+            with dpg.theme() as self.trace_theme:
+                with dpg.theme_component(0):
+                    dpg.add_theme_color(dpg.mvThemeCol_Text, (0, 255, 0, 255))
+
+            with dpg.theme() as self.debug_theme:
+                with dpg.theme_component(0):
+                    dpg.add_theme_color(dpg.mvThemeCol_Text, (64, 128, 255, 255))
+
+            with dpg.theme() as self.info_theme:
+                with dpg.theme_component(0):
+                    dpg.add_theme_color(dpg.mvThemeCol_Text, (255, 255, 255, 255))
+
+            with dpg.theme() as self.warning_theme:
+                with dpg.theme_component(0):
+                    dpg.add_theme_color(dpg.mvThemeCol_Text, (255, 255, 0, 255))
+
+            with dpg.theme() as self.error_theme:
+                with dpg.theme_component(0):
+                    dpg.add_theme_color(dpg.mvThemeCol_Text, (255, 0, 0, 255))
+
+            with dpg.theme() as self.critical_theme:
+                with dpg.theme_component(0):
+                    dpg.add_theme_color(dpg.mvThemeCol_Text, (255, 0, 0, 255))
 
     def init_logger(self):
         with dpg.group(horizontal=True):
@@ -150,4 +202,4 @@ class Logger:
         # self.log_level
 
 
-context.logger = Logger()
+context.logger = Logger

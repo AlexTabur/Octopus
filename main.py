@@ -186,7 +186,6 @@ with dpg.window(tag="main_window", no_resize=True):
                 dpg.add_text(default_value=" ")
 
     context.motionGUI.add_textures()
-    context.logger = Logger()
     with dpg.tab_bar(label="tabBar", show=True) as context.tabBar:
         with dpg.tab(label=txt.TS_MANUAL_TITLE, id=TAB_MANUAL_ID):
             context.motionGUI.init_manual_page()
@@ -209,11 +208,12 @@ with dpg.window(tag="main_window", no_resize=True):
         with dpg.tab(label=txt.TS_CONFIGURATONS, id=TAB_CONFIG_ID):
             context.config_ctrl.init_config_page()
 
-        with dpg.tab(label="Log", id=TAB_LOG_ID):
-            context.logger.init_logger()
+        # with dpg.tab(label="Log", id=TAB_LOG_ID):
+        #     context.logger.init_logger()
 
-
-      # , w_width=context.main_width-15, w_heigth=100, w_x=0, w_y=context.main_height-140)
+    log_window = dpg.add_child_window(autosize_x=False, autosize_y=True)
+    context.logger = Logger(parent=log_window)
+    # , w_width=context.main_width-15, w_heigth=100, w_x=0, w_y=context.main_height-140)
 
 # dpg.show_style_editor()
 

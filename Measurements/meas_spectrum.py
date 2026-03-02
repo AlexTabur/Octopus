@@ -177,7 +177,7 @@ class MeasureSpectrum:
             data_len = int((-wave_len_start + wave_len_stop) / wave_len_step) + 1
 
             self.ser_data_y = np.zeros((60, data_len))
-            self.ser_data_x = []
+            self.ser_data_x = []  # np.round(np.arange(wave_len_start, wave_len_stop, wave_len_step), 2)
 
             context.is_meas_in_process = True
 
@@ -202,43 +202,37 @@ class MeasureSpectrum:
                     context.device_worker.pm2100_2_ctrl.set_wave_len(self.wave_len, False)
                 if context.device_worker.is_pm2100_3_connected:
                     context.device_worker.pm2100_3_ctrl.set_wave_len(self.wave_len, False)
-
                 context.device_worker.laser_golight_ctrl.set_wave_len(self.wave_len)
-
                 #                time.sleep(1)
                 #                start = time.time()
                 #                end = time.time()
                 #                print("Прошло времени :", (end - start) * 10 ** 3, "ms")
-
                 self.ser_data_x.append(float(self.wave_len))
-
                 if context.device_worker.is_pm2100_1_connected:
                     for i, module in enumerate(context.pm_modules1):
                         if module:
                             power_arr = context.device_worker.pm2100_1_ctrl.get_power(i)
                             for j in range(4):
                                 context.pm_values[0 + i * 4 + j] = power_arr[j]
-
                 if context.device_worker.is_pm2100_2_connected:
                     for i, module in enumerate(context.pm_modules2):
                         if module:
                             power_arr = context.device_worker.pm2100_2_ctrl.get_power(i)
                             for j in range(4):
                                 context.pm_values[20 + i * 4 + j] = power_arr[j]
-
                 if context.device_worker.is_pm2100_3_connected:
                     for i, module in enumerate(context.pm_modules3):
                         if module:
                             power_arr = context.device_worker.pm2100_3_ctrl.get_power(i)
                             for j in range(4):
                                 context.pm_values[40 + i * 4 + j] = power_arr[j]
-
                 copy_to_chart(self.wave_len, power_idx)
                 power_idx += 1
-
                 self.wave_len += wave_len_step
-
-            #            time.sleep(0.1)
+                time.sleep(0.1)
+            # for i in range(60):
+            #     pm_num = i // 20 + 1
+            #     self.ser_data_y[i] = context.device_worker.pm2100_1_ctrl.get_meas_data()
             for i in range(60):
                 dpg.delete_item(f"series_tag{i}")
                 if context.act_chans[i]:

@@ -386,27 +386,27 @@ class MotionGUI:
             self.pos_2 = None
             self.pos_3 = None
             self.pos_4 = None
-        print(self.pos_1, self.pos_2, self.pos_3, self.pos_4)
 
     def run_task(self):
         while True:
             self.obj_cam.MV_CC_GetOneFrameTimeout(self.buf_grab_image, self.buf_grab_image_size, self.stFrameInfo)
 
-            resized = Mono_numpy(self.buf_grab_image, self.n_w, self.n_h)
+            resized = Mono_numpy(self.buf_grab_image, self.n_w, self.n_h)[:1000, :1000]
             normalized_image = resized.copy()
 
             final = cv2.cvtColor(normalized_image, cv2.COLOR_GRAY2RGB)
             if self.pos_1 is not None and self.pos_2 is not None and self.pos_3 is not None and self.pos_4 is not None:
-                a = (self.pos_1 / 400 * self.width).astype(int)
-                b = (self.pos_2 / 400 * self.width).astype(int)
-                c = (self.pos_3 / 400 * self.width).astype(int)
-                d = (self.pos_4 / 400 * self.width).astype(int)
+                a = (self.pos_1 / 400 * 1000).astype(int)
+                b = (self.pos_2 / 400 * 1000).astype(int)
+                c = (self.pos_3 / 400 * 1000).astype(int)
+                d = (self.pos_4 / 400 * 1000).astype(int)
                 x1, y1 = a
                 x2, y2 = b
                 x3, y3 = c
                 x4, y4 = d
                 th1 = 3.8 * 255  # dpg.get_value("th1")
                 th2 = 3.9 * 255  # dpg.get_value("th2")
+                # print(x1, y1, x2, y2, x3, y3, x4, y4)
                 chip_img = resized[y3:y4, x3:x4].copy()
                 resized = resized[y1:y2, x1:x2]
                 cv2.normalize(chip_img, chip_img, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
@@ -493,7 +493,7 @@ class MotionGUI:
                     cv2.line(final, (int(get_y(0, m, b)), 0),
                              (int(get_y(int(self.width), m, b)), int(self.width)),
                              (0, 255, 0),
-                             int(0.1 * self.val))
+                             int(1))  # 0.1 * self.val
                     self.v1b = b
                     self.v1k = m
                 if len(vertical_2_x) > 0:
@@ -502,17 +502,17 @@ class MotionGUI:
                     cv2.line(final, (int(get_y(0, m, b)), 0),
                              (int(get_y(int(self.width), m, b)), int(self.width)),
                              (0, 255, 0),
-                             int(0.1 * self.val))
+                             int(1))  # 0.1 * self.val
                     self.v2b = b
                     self.v2k = m
                 for i in range(0, len(horizontal_1_x), 2):
                     cv2.line(final, (int(horizontal_1_x[i]), int(horizontal_1_y[i])),
                              (int(horizontal_1_x[i + 1]), int(horizontal_1_y[i + 1])),
-                             (255, 0, 0), int(0.1 * self.val))
+                             (255, 0, 0), int(1))  # 0.1 * self.val
                 for i in range(0, len(horizontal_2_x), 2):
                     cv2.line(final, (int(horizontal_2_x[i]), int(horizontal_2_y[i])),
                              (int(horizontal_2_x[i + 1]), int(horizontal_2_y[i + 1])),
-                             (255, 0, 0), int(0.05 * self.val))
+                             (255, 0, 0), int(1))  # 0.05 * self.val
 
                 if self.moving_z1:
                     if self.moving_right:
@@ -547,7 +547,7 @@ class MotionGUI:
                             for i in range(0, len(horizontal_1_y), 2):
                                 cv2.line(chip_img, (int(horizontal_1_x[i]), int(horizontal_1_y[i])),
                                          (int(horizontal_1_x[i + 1]), int(horizontal_1_y[i + 1])),
-                                         (255, 255, 0), int(0.2 * self.val))
+                                         (255, 255, 0), int(1))  # 0.2 * self.val
                                 j = (len(horizontal_2_y) - 1) // 4 * 2
                                 dy = horizontal_2_y[j] - horizontal_1_y[i]
                                 if abs(dy) < abs(min_dy):
@@ -557,26 +557,26 @@ class MotionGUI:
                             for i in range(0, len(horizontal_2_y), 2):
                                 cv2.line(resized, (int(horizontal_2_x[i]), int(horizontal_2_y[i])),
                                          (int(horizontal_2_x[i + 1]), int(horizontal_2_y[i + 1])),
-                                         (255, 255, 0), int(0.2 * self.val))
+                                         (255, 255, 0), int(1))  # 0.2 * self.val
                                 j = (len(horizontal_1_y) - 1) // 4 * 2
                                 dy = horizontal_2_y[i] - horizontal_1_y[j]
                                 if abs(dy) < abs(min_dy):
                                     min_dy = dy
                     print(min_dy)
                     if 1000 > abs(min_dy):
-                        self.move_(2, (-min_dy) / self.pix_per_step - 127/2)
+                        self.move_(2, (min_dy) / self.pix_per_step - 127/2)
                         self.moving_y = False
                         self.move_(3, 400 - 200 + 34)
 
                 cv2.line(resized, (int(0), int(self.y1)),
                          (int(self.c_x), int(self.y1)),
-                         (255, 255, 0), int(0.05 * self.val))
+                         (255, 255, 0), int(1))
                 cv2.line(resized, (int(0), int(self.y2)),
                          (int(self.c_x), int(self.y2)),
-                         (255, 255, 0), int(0.05 * self.val))
+                         (255, 255, 0), int(1))  # 0.05 * self.val
 
-                final[y1:y2, x1:x2] = resized
-                final[y3:y4, x3:x4] = chip_img
+                # final[y1:y2, x1:x2] = resized
+                # final[y3:y4, x3:x4] = chip_img
                 # cv2.rectangle(final, a, b, (0, 255, 255), int(0.05 * self.val))
             # z right -8002.0 -2402.0 -802.0 bruh 135.0
             display_img("camera_1", cv2.resize(final, (400, 400), interpolation=cv2.INTER_AREA))
