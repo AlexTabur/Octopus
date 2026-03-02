@@ -3,10 +3,24 @@ import struct
 from Measurements.devices.abstract import AbstractDevice
 from core.context import Context
 from core.exceptions import ConnectionError
-from core.connections.socket.socket import Socket
+from core.connections.socket.socket import Socket2
+
+
+def checksum(a):
+    summ = 0
+    for i in a:
+        summ += i
+    summ %= 256
+    return summ.to_bytes()
+
+
+def command(h):
+    res = bytearray.fromhex(h)
+    res += checksum(res)
+    return res
+
 
 class GolightTL(AbstractDevice):
-
     dev_name = 'GolightTl'
     dev_type = 'power_meter'
 
@@ -14,17 +28,17 @@ class GolightTL(AbstractDevice):
         super().__init__()
         self.baudrate = None
         self.connection_type = 'socket'
-        self.con_class = Socket
+        self.con_class = Socket2
         self.state = 0
         self.last_power = 0
-        self.last_wl    = 0
+        self.last_wl = 0
         self.last_beamstate = 0
         self.reg1 = 0
         self.reg2 = 0
         self.reg3 = 0
 
     def prep_array(self, data_arr):
-        data_arr = [0xAA, len(data_arr)+1] + data_arr
+        data_arr = [0xAA, len(data_arr) + 1] + data_arr
         crc = 0
         for i in range(len(data_arr)):
             crc += data_arr[i]
@@ -37,11 +51,11 @@ class GolightTL(AbstractDevice):
 
     def init(self):
         if not self.connection or not self.connection.connected:
-            return False #raise ConnectionError(f'Device {self.dev_name} is not connected')
+            return False  #raise ConnectionError(f'Device {self.dev_name} is not connected')
 
         try:
             self.status = 'processing'
-#            cmd_arr = [0xAA, 0x02, 0x78, 0x24]
+            #            cmd_arr = [0xAA, 0x02, 0x78, 0x24]
             cmd = self.prep_array([0x78])
             ans = self.io_raw(cmd)
 
@@ -80,14 +94,13 @@ class GolightTL(AbstractDevice):
         self.status = 'ready'
         return ans[3]
 
-
     def set_power_dbm(self, power):
         if not self.connection or not self.connection.connected:
             raise ConnectionError(f'Device {self.dev_name} is not connected')
         self.status = 'processing'
         self.last_power = power
-        iLow, iHigh  = struct.unpack('<HH', struct.pack('f', power))
-        cmd = self.prep_array([0x50, iLow&0xFF, (iLow>>8)&0xFF, iHigh&0xFF, (iHigh>>8)&0xFF])
+        iLow, iHigh = struct.unpack('<HH', struct.pack('f', power))
+        cmd = self.prep_array([0x50, iLow & 0xFF, (iLow >> 8) & 0xFF, iHigh & 0xFF, (iHigh >> 8) & 0xFF])
         ans = self.io_raw(cmd)
         self.status = 'ready'
 
@@ -96,11 +109,18 @@ class GolightTL(AbstractDevice):
             raise ConnectionError(f'Device {self.dev_name} is not connected')
         self.status = 'processing'
         self.last_wl = wave_len
-        wl = int(wave_len*1000)
-        cmd = self.prep_array([0x57, wl&0xFF, (wl>>8)&0xFF, (wl>>16)&0xFF, (wl>>24)&0xFF])
+        wl = int(wave_len * 1000)
+        cmd = self.prep_array([0x57, wl & 0xFF, (wl >> 8) & 0xFF, (wl >> 16) & 0xFF, (wl >> 24) & 0xFF])
         ans = self.io_raw(cmd)
         self.status = 'ready'
 
+    def start_scan(self, start, cutoff, interval):
+        if not self.connection or not self.connection.connected:
+            raise ConnectionError(f'Device {self.dev_name} is not connected')
+        self.status = 'processing'
+        a = struct.pack('<IIH', start, cutoff, interval)
+        ans = self.io_raw(command("aa0c42" + a.hex()))
+        self.status = 'ready'
 
     def connect(self):
         AbstractDevice.connect(self)

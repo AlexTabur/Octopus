@@ -1,11 +1,33 @@
 import os
 import threading
+from time import sleep
 
 from Measurements.meas_datasheet import DataSheet
 from Measurements.meas_spectrum_zero import MeasureSpectrumZero
 from core.gui_helper import *
 
 context = Context()
+
+
+def pm1(pm_, logn, lev):
+    # pm_.send("STOP\r\n")
+    # print(pm_.get_err())
+    # pm_.set_triggeer(1, True)
+    # pm_.set_avg_time(0.2)
+    # pm_.set_meas_cnt(int(logn))
+    # pm_.set_gain(lev, True)
+    # pm_.set_work_mode(2, True)
+    # sleep(2)
+    # pm_.run_meas()
+    pm_.send("STOP\r\n")
+    print(pm_.get_err())
+    pm_.send("TRIG 1\r\n")
+    pm_.send("AVG 0.2\r\n")
+    pm_.send(f"LOGN {int(logn)}\r\n")
+    pm_.send(f"LEV {lev}\r\n")
+    pm_.send("WMOD CONST1\r\n")
+    pm_.send("MEAS\r\n")
+    print(pm_.get_err())
 
 
 class MeasureSpectrum:
@@ -141,8 +163,8 @@ class MeasureSpectrum:
             return
 
         context.gui_hlp.showMessage(txt.PLATFORM_MEASURING_MSG, txt.BREAK, DLG_CT_BREAK_PROC, prog_bar=True)
-        self.thread_proc = threading.Thread(target=self.exec_measure, args=[float(start_len), float(stop_len),
-                                                                            float(power), float(step), cutoff],
+        self.thread_proc = threading.Thread(target=self.exec_measure_sync, args=[float(start_len), float(stop_len),
+                                                                                 float(power), float(step), cutoff],
                                             daemon=True)
         self.thread_proc.start()
 
@@ -263,105 +285,75 @@ class MeasureSpectrum:
                     return idx
             return -1
 
-        def copy_to_chart(wl, arr_idx):
-            z_idx = find_zero_arr_idx(wl)
-            for i in range(60):
-                val = float(context.pm_values[i])
-                if z_idx == -1:
-                    zero_lvl = 0
-                else:
-                    zero_lvl = context.spectrum_zero[z_idx]['pow'][i]
-                value = val - zero_lvl
-                if cut_off_lvl > value:
-                    value = cut_off_lvl
-                self.ser_data_y[i][arr_idx] = float(value)
+        # def copy_to_chart(wl, arr_idx):
+        #     z_idx = find_zero_arr_idx(wl)
+        #     for i in range(60):
+        #         val = float(context.pm_values[i])
+        #         if z_idx == -1:
+        #             zero_lvl = 0
+        #         else:
+        #             zero_lvl = context.spectrum_zero[z_idx]['pow'][i]
+        #         value = val - zero_lvl
+        #         if cut_off_lvl > value:
+        #             value = cut_off_lvl
+        #         try:
+        #             self.ser_data_y[i][arr_idx] = float(value)
+        #         except:
+        #             print(i, arr_idx)
 
-        try:
-            self.wave_len = wave_len_start
+        # try:
 
-            data_len = int((-wave_len_start + wave_len_stop) / wave_len_step) + 1
+        logn = int((wave_len_stop - wave_len_start) / wave_len_step)
+        print(logn)
+        self.ser_data_y = np.zeros((60, logn))
+        self.ser_data_x = np.round(np.arange(wave_len_start, wave_len_stop, wave_len_step), 2)
+        context.is_meas_in_process = True
+        conn_state = context.device_worker.laser_golight_ctrl.get_beam_state()
+        context.device_worker.laser_golight_ctrl.turn_beam(1)
+        context.device_worker.laser_golight_ctrl.set_power_dbm(power)
 
-            self.ser_data_y = np.zeros((60, data_len))
-            self.ser_data_x = []
+        time.sleep(1)
+        context.break_proc = False
+        if context.device_worker.is_pm2100_1_connected:
+            context.device_worker.pm2100_1_ctrl.startConst1(1545, 0.23, logn)
+        if context.device_worker.is_pm2100_2_connected:
+            context.device_worker.pm2100_2_ctrl.startConst1(1545, 0.23, logn)
+        if context.device_worker.is_pm2100_3_connected:
+            context.device_worker.pm2100_3_ctrl.startConst1(1545, 0.23, logn)
 
-            context.is_meas_in_process = True
+        context.device_worker.laser_golight_ctrl.start_scan(int(wave_len_start * 1e3), int(wave_len_stop * 1e3), 1)
+        context.gui_hlp.init_progress_bar(logn)
+        ret1, ret2 = context.device_worker.pm2100_1_ctrl.get_meas_state()
+        while ret1 != "1":
+            ret1, ret2 = context.device_worker.pm2100_1_ctrl.get_meas_state()
+            print(ret1, ret2)
+            dpg.set_value("popup_pb", int(ret2) / logn)
+            sleep(0.1)
+        if context.device_worker.is_pm2100_1_connected:
+            for i in range(20):
+                self.ser_data_y[i] = context.device_worker.pm2100_1_ctrl.get_meas_data(i // 4, i % 4 + 1)
+        if context.device_worker.is_pm2100_2_connected:
+            for i in range(20):
+                self.ser_data_y[i + 20] = context.device_worker.pm2100_2_ctrl.get_meas_data(i // 4, i % 4 + 1)
+        if context.device_worker.is_pm2100_3_connected:
+            for i in range(20):
+                self.ser_data_y[i + 40] = context.device_worker.pm2100_3_ctrl.get_meas_data(i // 4, i % 4 + 1)
 
-            #            if laser:
-            #                context.device_worker.laser_5300_ctrl.set_power_mW(dBm_to_mW(power))
-            #            else:
+        for i in range(60):
+            dpg.delete_item(f"series_tag{i}")
+            if context.act_chans[i]:
+                pm_num = i // 20 + 1
+                ch_num = i % 20
+                chan_name = f"PM{pm_num}CH{ch_num}"
+                visible = dpg.get_value(f'spectrum_legend_{i}')
+                dpg.add_line_series(self.ser_data_x, self.ser_data_y[i], label=chan_name, parent="y_axis",
+                                    tag=f"series_tag{i}", show=visible)
+        dpg.fit_axis_data("x_axis")
+        dpg.fit_axis_data("y_axis")
 
-            conn_state = context.device_worker.laser_golight_ctrl.get_beam_state()
-            context.device_worker.laser_golight_ctrl.turn_beam(1)
-            context.device_worker.laser_golight_ctrl.set_power_dbm(power)
-            context.device_worker.laser_golight_ctrl.set_wave_len(wave_len_start)
-            time.sleep(1)
-
-            context.break_proc = False
-
-            steps = (wave_len_stop - wave_len_start) / wave_len_step
-            context.gui_hlp.init_progress_bar(steps)
-            power_idx = 0
-            while not context.break_proc and self.wave_len <= wave_len_stop:
-                context.gui_hlp.progress_bar_step()
-                if context.device_worker.is_pm2100_1_connected:
-                    context.device_worker.pm2100_1_ctrl.set_wave_len(self.wave_len, False)
-                if context.device_worker.is_pm2100_2_connected:
-                    context.device_worker.pm2100_2_ctrl.set_wave_len(self.wave_len, False)
-                if context.device_worker.is_pm2100_3_connected:
-                    context.device_worker.pm2100_3_ctrl.set_wave_len(self.wave_len, False)
-
-                context.device_worker.laser_golight_ctrl.set_wave_len(self.wave_len)
-
-                #                time.sleep(1)
-                #                start = time.time()
-                #                end = time.time()
-                #                print("Прошло времени :", (end - start) * 10 ** 3, "ms")
-
-                self.ser_data_x.append(float(self.wave_len))
-
-                if context.device_worker.is_pm2100_1_connected:
-                    for i, module in enumerate(context.pm_modules1):
-                        if module:
-                            power_arr = context.device_worker.pm2100_1_ctrl.get_power(i)
-                            for j in range(4):
-                                context.pm_values[0 + i * 4 + j] = power_arr[j]
-
-                if context.device_worker.is_pm2100_2_connected:
-                    for i, module in enumerate(context.pm_modules2):
-                        if module:
-                            power_arr = context.device_worker.pm2100_2_ctrl.get_power(i)
-                            for j in range(4):
-                                context.pm_values[20 + i * 4 + j] = power_arr[j]
-
-                if context.device_worker.is_pm2100_3_connected:
-                    for i, module in enumerate(context.pm_modules3):
-                        if module:
-                            power_arr = context.device_worker.pm2100_3_ctrl.get_power(i)
-                            for j in range(4):
-                                context.pm_values[40 + i * 4 + j] = power_arr[j]
-
-                copy_to_chart(self.wave_len, power_idx)
-                power_idx += 1
-
-                self.wave_len += wave_len_step
-
-            #            time.sleep(0.1)
-            for i in range(60):
-                dpg.delete_item(f"series_tag{i}")
-                if context.act_chans[i]:
-                    pm_num = i // 20 + 1
-                    ch_num = i % 20
-                    chan_name = f"PM{pm_num}CH{ch_num}"
-                    visible = dpg.get_value(f'spectrum_legend_{i}')
-                    dpg.add_line_series(self.ser_data_x, self.ser_data_y[i], label=chan_name, parent="y_axis",
-                                        tag=f"series_tag{i}", show=visible)
-
-            dpg.fit_axis_data("x_axis")
-            dpg.fit_axis_data("y_axis")
-
-        finally:
-            context.is_meas_in_process = False
-            context.gui_hlp.popup_close()
+        # finally:
+        context.is_meas_in_process = False
+        context.gui_hlp.popup_close()
 
     def open_report_file(self):
         filename = dpg.get_value('wl_report_file')

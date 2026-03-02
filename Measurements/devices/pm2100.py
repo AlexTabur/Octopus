@@ -2,29 +2,31 @@ import logging
 import struct
 import time
 
+import numpy as np
+
 from Measurements.devices.abstract import AbstractDevice
 from core.context import Context
 from core.exceptions import ConnectionError
-from core.connections.socket.socket import Socket
+from core.connections.socket.socket import Socket2
 
-PM_MODE_CONST1  = 0
-PM_MODE_SWEEP1  = 1
-PM_MODE_CONST2  = 2
-PM_MODE_SWEEP2  = 3
+PM_MODE_CONST1 = 0
+PM_MODE_SWEEP1 = 1
+PM_MODE_CONST2 = 2
+PM_MODE_SWEEP2 = 3
 PM_MODE_FREERUN = 4
 
-class PM2100(AbstractDevice):
 
+class PM2100(AbstractDevice):
     dev_name = 'PM2100'
     dev_type = 'power_meter'
-#    chanels = 4
+    #    chanels = 4
     value_upd = False
 
     def __init__(self, module_num):
         super().__init__()
         self.baudrate = None
         self.connection_type = 'socket'
-        self.con_class = Socket
+        self.con_class = Socket2
         self.state = 0
         self.module_num = module_num
 
@@ -74,14 +76,14 @@ class PM2100(AbstractDevice):
             self.status = 'ready'
             self.value_upd = True
             res = ans.decode().strip().split(',')
-            if len(res)==4:
+            if len(res) == 4:
                 return res
             else:
                 self.disconnect()
                 return [0, 0, 0, 0]
         except Exception as e:
             self.disconnect()
-            return [0,0,0,0]
+            return [0, 0, 0, 0]
 
     def get_module_cnt(self):
         try:
@@ -96,11 +98,11 @@ class PM2100(AbstractDevice):
         except Exception as e:
             self.disconnect()
 
-#  0 = �CONST1� => Constant Wavelength, No Auto Gain
-#  1 = �SWEEP1� => Sweep Wavelength, No Auto Gain
-#  2 = �CONST2� => Constant Wavelength, Auto Gain
-#  3 = �SWEEP2� => Sweep Wavelength, Auto Gain
-#  4 = �FREERUN� => Constant Wavelength, No Auto Gain, First
+    #  0 = “CONST1” => Constant Wavelength, No Auto Gain
+    #  1 = “SWEEP1” => Sweep Wavelength, No Auto Gain
+    #  2 = “CONST2” => Constant Wavelength, Auto Gain
+    #  3 = “SWEEP2” => Sweep Wavelength, Auto Gain
+    #  4 = “FREERUN” => Constant Wavelength, No Auto Gain, First
     def set_work_mode(self, wmode, check):
         try:
             if not self.connection or not self.connection.connected:
@@ -127,7 +129,7 @@ class PM2100(AbstractDevice):
         except Exception as e:
             self.disconnect()
 
-# Set the wavelength range of Sweep Wavelength measuring mode (1250 ~ 1630)
+    # Set the wavelength range of Sweep Wavelength measuring mode (1250 ~ 1630)
     def set_sweep_range(self, bg, end, step):
         try:
             if not self.connection or not self.connection.connected:
@@ -152,7 +154,7 @@ class PM2100(AbstractDevice):
             self.disconnect()
 
     # Set Gain stage for CONST1, SWEEP1 and FREERUN measuring mode (1, 2, 3, 4, 5)
-    def set_gain(self, gain,  check):
+    def set_gain(self, gain, check):
         try:
             if not self.connection or not self.connection.connected:
                 raise ConnectionError(f'Device {self.dev_name} is not connected')
@@ -171,7 +173,7 @@ class PM2100(AbstractDevice):
             self.disconnect()
 
     # Set trigger 0 - Internal. 1 - External
-    def set_triggeer(self, trig,  check):
+    def set_triggeer(self, trig, check):
         try:
             if not self.connection or not self.connection.connected:
                 raise ConnectionError(f'Device {self.dev_name} is not connected')
@@ -202,7 +204,7 @@ class PM2100(AbstractDevice):
             self.disconnect()
 
     # Set the averaging time for CONST1, CONST2, FREERUN Mode and READ? Command (0.01 ~ 10000.00) ms
-    def set_avg_time(self, avg): # Default value = 5 ms
+    def set_avg_time(self, avg):  # Default value = 5 ms
         try:
             if not self.connection or not self.connection.connected:
                 raise ConnectionError(f'Device {self.dev_name} is not connected')
@@ -228,7 +230,7 @@ class PM2100(AbstractDevice):
             self.disconnect()
 
     # Starting to eliminate the electrical DC offset. Before measuring
-    # optical power, run �ZERO�. Please be careful not to incident light into
+    # optical power, run “ZERO”. Please be careful not to incident light into
     # optical connector. This command action takes about 2.5sec so
     # please run other commands at least 2.5 sec later.
     def run_zero(self):
@@ -318,44 +320,80 @@ class PM2100(AbstractDevice):
         except Exception as e:
             self.disconnect()
 
+
+
+    # def get_meas_data(self, module, chan):
+    #     try:
+    #         if not self.connection or not self.connection.connected:
+    #             raise ConnectionError(f'Device {self.dev_name} is not connected')
+    #         self.status = 'processing'
+    #         yep = 0
+    #         while yep == 0:
+    #             try:
+    #                 self.send(f'LOGG? {module},{chan}\r\n')
+    #                 # response_pm = self.sock_pm.recv(10)
+    #                 response_ = self.read_len(2)
+    #                 hashtag, digits = chr(response_[0]), int(chr(response_[1]))
+    #                 # hashtag = hashtag.decode('ascii')
+    #                 # digits = int(digits.decode('ascii'))
+    #                 num = int(self.read_len(digits).decode('ascii'))
+    #                 list1 = []
+    #                 s = 512
+    #                 a = response_[2 + digits:]
+    #                 num -= len(a)
+    #                 while num > 0:
+    #                     resp = self.read_len(s)
+    #                     a += resp
+    #                     num -= len(resp)
+    #                 b = struct.unpack("<" + "f" * (len(a) // 4), a)
+    #                 for i in b:
+    #                     list1.append(i)
+    #
+    #                 yep = 1
+    #             except ValueError:
+    #                 self.s.recv(512)
+    #                 print(f'Считываю снова {module}, {chan}')
+    #         self.status = 'ready'
+    #         return list1
+    #     except Exception as e:
+    #         # return list1
+    #         self.disconnect()
     def get_meas_data(self, module, chan):
-        try:
-            if not self.connection or not self.connection.connected:
-                raise ConnectionError(f'Device {self.dev_name} is not connected')
 
-            self.status = 'processing'
-            ans = self.io(f'LOGG? {module},{chan}\r\n')
- #           print("ans=",ans)
-            list1 = list()
-            length = ans[2:]
-            length = int(length)
-            header = ans[:1]
-            if(len(ans) == 0) or (header != b'#'):
-                return list1
+        if not self.connection or not self.connection.connected:
+            raise ConnectionError(f'Device {self.dev_name} is not connected')
 
-#            print("ans_len=",length)
-            while(length>0):
-                data = self.io('')
-                chunked_list = list()
-                chunk_size = 4
+        self.status = 'processing'
+        yep = 0
+        list1 = []
+        while yep == 0:
+            # try:
+            self.send(f'LOGG? {module},{chan}\r\n')
+            response_ = self.read_len2(2)
+            # print(response_)
+            hashtag, digits = chr(response_[0]), int(chr(response_[1]))
+            num = int(self.read_len2(digits).decode('ascii'))
 
-                for i in range(0, len(data), chunk_size):
-                    chunked_list.append(data[i:i + chunk_size])
-                    arr = chunked_list[len(chunked_list) - 1]
-                    barr = bytes(reversed(arr))
-                    lennn = len(barr)
-                    if lennn == 4:
-                        ff = struct.unpack('!f', barr)
-                        list1.append(ff[0])
+            s = 512
+            a = response_[2 + digits:]
 
-                length -= len(data)
-#            print(list1)
+            num -= len(a)
+            while num > 0:
+                resp = self.read_len2(s)
+                a += resp
+                num -= len(resp)
+            b = struct.unpack("<" + "f" * (len(a) // 4), a)
+            for i in b:
+                list1.append(i)
+            # print("bruh", module, chan, list1)
+            # c.shape = (c.size // 4, 4)
+            yep = 1
+            # except ValueError:
+            #     self.read_len2(512)
+            #     print(f'Считываю снова {module}')
+        self.status = 'ready'
+        return list1
 
-            self.status = 'ready'
-            return list1
-        except Exception as e:
-#            return list1
-            self.disconnect()
 
     def connect(self):
         AbstractDevice.connect(self)
@@ -366,6 +404,18 @@ class PM2100(AbstractDevice):
             AbstractDevice.close(self)
         self.state |= 0x01
 
+    def startConst1(self, wave_len, avg, count):
+        self.set_work_mode(0, False)
+        time.sleep(0.1)
+        self.set_wave_len(wave_len, False)
+        time.sleep(0.1)
+        self.set_triggeer(1, False)
+        time.sleep(0.1)
+        self.set_avg_time(avg)
+        time.sleep(0.1)
+        self.set_meas_cnt(count)
+        time.sleep(0.1)
+        self.run_meas()
     def startConst2(self, wave_len, avg, count):
         self.set_work_mode(2, False)
         time.sleep(0.1)
@@ -381,6 +431,6 @@ class PM2100(AbstractDevice):
 
     def startSweep2(self, start_wl, stop_wl, step_wl, speed):
         self.set_work_mode(3, False)
-        self.set_sweep_range(start_wl,stop_wl,step_wl)
+        self.set_sweep_range(start_wl, stop_wl, step_wl)
         self.set_sweep_speed(speed)
         self.run_meas()
