@@ -2,7 +2,6 @@ import threading
 from threading import Timer
 from time import sleep
 
-import cv2
 from pynput import keyboard
 from win32gui import GetWindowText, GetForegroundWindow
 
@@ -279,7 +278,7 @@ class MotionGUI:
         self.NeedBufSize = int(stPayloadSize.nCurValue)
         self.val = 100
         self.val2 = 3
-        self.rho = 400
+        self.rho = 200
         self.theta = np.pi / 180
         self.n_w, self.n_h = 5120, 5120
         self.width = int(self.n_w * self.val / 100)
@@ -339,7 +338,7 @@ class MotionGUI:
 
     def move_x(self, right):
         self.moving_right = right
-        self.move_(1, (self.v2b - self.v1b) / np.sqrt(self.v1k ** 2 + 1) - 5)
+        self.move_(1, np.abs(self.v2b - self.v1b) / np.sqrt(self.v1k ** 2 + 1) - 1000)
 
     def set_pix_per_step(self, sender, app_data, user_data):
         prev_x = (self.v2b - self.v1b) / np.sqrt(self.v1k ** 2 + 1)
@@ -361,6 +360,7 @@ class MotionGUI:
         x = (self.v2b - self.v1b) / np.sqrt(self.v1k ** 2 + 1)
         self.pix_per_step = np.abs(x - prev_x) / (8 * 200)
         print("pix per step", self.pix_per_step)
+
 
     def click_callback(self):
         a = np.array(dpg.get_mouse_pos(local=False))
@@ -385,17 +385,12 @@ class MotionGUI:
         print(self.pos_1, self.pos_2, self.pos_3, self.pos_4)
 
     def run_task(self):
-        #dirt_img = cv2.imread(r"C:\Users\Octopus\Desktop\dirt.jpg")
-        #dirt_img = cv2.cvtColor(dirt_img, cv2.COLOR_RGB2GRAY)
-        # cv2.normalize(dirt_img, dirt_img, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
         while True:
-
             self.obj_cam.MV_CC_GetOneFrameTimeout(self.buf_grab_image, self.buf_grab_image_size, self.stFrameInfo)
 
             resized = Mono_numpy(self.buf_grab_image, self.n_w, self.n_h)
-            # resized += dirt_img
-            normalized_image = cv2.normalize(resized, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
-            # resized = Mono_numpy(self.buf_grab_image, self.n_w, self.n_h)
+            normalized_image = resized.copy()
+            cv2.normalize(resized, normalized_image, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
             final = cv2.cvtColor(normalized_image, cv2.COLOR_GRAY2RGB)
             if self.pos_1 is not None and self.pos_2 is not None and self.pos_3 is not None and self.pos_4 is not None:
                 a = (self.pos_1 / 400 * self.width).astype(int)
@@ -472,10 +467,26 @@ class MotionGUI:
                                 vertical_2_x.append(line__[2])
                                 vertical_2_y.append(line__[3])
 
+                for i in range(len(vertical_1_x)):
+                    vertical_1_x[i] += x1
+                for i in range(len(vertical_1_y)):
+                    vertical_1_y[i] += y1
+                for i in range(len(horizontal_1_x)):
+                    horizontal_1_x[i] += x1
+                for i in range(len(horizontal_1_y)):
+                    horizontal_1_y[i] += y1
+                for i in range(len(vertical_2_x)):
+                    vertical_2_x[i] += x3
+                for i in range(len(vertical_2_y)):
+                    vertical_2_y[i] += y3
+                for i in range(len(horizontal_2_x)):
+                    horizontal_2_x[i] += x3
+                for i in range(len(horizontal_2_y)):
+                    horizontal_2_y[i] += y3
                 if len(vertical_1_x) > 0:
                     m, b = np.polyfit(vertical_1_y, vertical_1_x, 1)
                     self.angle1 = np.atan(m) * 180 / np.pi
-                    cv2.line(resized, (int(get_y(0, m, b)), 0),
+                    cv2.line(final, (int(get_y(0, m, b)), 0),
                              (int(get_y(int(self.width), m, b)), int(self.width)),
                              (0, 255, 0),
                              int(0.1 * self.val))
@@ -484,25 +495,25 @@ class MotionGUI:
                 if len(vertical_2_x) > 0:
                     m, b = np.polyfit(vertical_2_y, vertical_2_x, 1)
                     self.angle2 = np.atan(m) * 180 / np.pi
-                    cv2.line(chip_img, (int(get_y(0, m, b)), 0),
+                    cv2.line(final, (int(get_y(0, m, b)), 0),
                              (int(get_y(int(self.width), m, b)), int(self.width)),
                              (0, 255, 0),
                              int(0.1 * self.val))
                     self.v2b = b
                     self.v2k = m
                 for i in range(0, len(horizontal_1_x), 2):
-                    cv2.line(resized, (int(horizontal_1_x[i]), int(horizontal_1_y[i])),
+                    cv2.line(final, (int(horizontal_1_x[i]), int(horizontal_1_y[i])),
                              (int(horizontal_1_x[i + 1]), int(horizontal_1_y[i + 1])),
                              (255, 0, 0), int(0.1 * self.val))
                 for i in range(0, len(horizontal_2_x), 2):
-                    cv2.line(chip_img, (int(horizontal_2_x[i]), int(horizontal_2_y[i])),
+                    cv2.line(final, (int(horizontal_2_x[i]), int(horizontal_2_y[i])),
                              (int(horizontal_2_x[i + 1]), int(horizontal_2_y[i + 1])),
                              (255, 0, 0), int(0.05 * self.val))
 
                 if self.moving_z1:
                     if self.moving_right:
                         if len(vertical_2_x) < 1:
-                            self.move_(3, 1)
+                            self.move_(3, 3)
 
                         else:
                             self.moving_z1 = False
@@ -534,7 +545,7 @@ class MotionGUI:
                                          (int(horizontal_1_x[i + 1]), int(horizontal_1_y[i + 1])),
                                          (255, 255, 0), int(0.2 * self.val))
                                 j = (len(horizontal_2_y) - 1) // 4 * 2
-                                dy = horizontal_2_y[j] - horizontal_1_y[i + 1]
+                                dy = horizontal_2_y[j] - horizontal_1_y[i]
                                 if abs(dy) < abs(min_dy):
                                     min_dy = dy
                     else:
@@ -543,11 +554,12 @@ class MotionGUI:
                                 cv2.line(resized, (int(horizontal_2_x[i]), int(horizontal_2_y[i])),
                                          (int(horizontal_2_x[i + 1]), int(horizontal_2_y[i + 1])),
                                          (255, 255, 0), int(0.2 * self.val))
-                                dy = self.y1 - horizontal_2_y[i]
+                                j = (len(horizontal_1_y) - 1) // 4 * 2
+                                dy = horizontal_2_y[i] - horizontal_1_y[j]
                                 if abs(dy) < abs(min_dy):
                                     min_dy = dy
                     print(min_dy)
-                    if 1000 > abs(min_dy) > 10:
+                    if 1000 > abs(min_dy):
                         self.move_(2, (-min_dy) / self.pix_per_step)
                         self.moving_y = False
                         self.move_(3, 400 - 200)
@@ -559,10 +571,10 @@ class MotionGUI:
                          (int(self.c_x), int(self.y2)),
                          (255, 255, 0), int(0.05 * self.val))
 
-
-                final[y1:y2, x1:x2] = resized
-                final[y3:y4, x3:x4] = chip_img
+                # final[y1:y2, x1:x2] = resized
+                # final[y3:y4, x3:x4] = chip_img
                 # cv2.rectangle(final, a, b, (0, 255, 255), int(0.05 * self.val))
+            # z right -8002.0 -2402.0 -802.0 bruh 135.0
             display_img("camera_1", cv2.resize(final, (400, 400), interpolation=cv2.INTER_AREA))
 
     @staticmethod
@@ -788,17 +800,76 @@ class MotionGUI:
 
     def init_manual_page(self):
         context.positions.add_pos_window()
-        top_margin = 70
-        left_margin = 100
-        dpg.add_image('texture_xy', pos=(400 + left_margin, 223 + top_margin))
-        dpg.add_image('texture_z', pos=(89 + left_margin, 223 + top_margin))
+        _y = 200
+        _x = 20
+        dpg.add_image('texture_xy', pos=(355 + _x, 223 + _y))
+        dpg.add_image('texture_z', pos=(44 + _x, 223 + _y))
 
-        with dpg.group(pos=(left_margin + 100, top_margin + 500), horizontal=True):
+        stPayloadSize = MVCC_INTVALUE_EX()
+        ret_temp = self.obj_cam.MV_CC_GetIntValueEx("PayloadSize", stPayloadSize)
+        if ret_temp != MV_OK:
+            return
+
+        dpg.add_image_button(context.axis[0]['txt_p'], pos=(449 + _x, 223 + _y),
+                             tag=context.axis[0]['name'] + 'bnt_p')  # X линейное +
+        dpg.add_image_button(context.axis[0]['txt_m'], pos=(269 + _x, 223 + _y),
+                             tag=context.axis[0]['name'] + 'bnt_m')  # X линейное -
+        dpg.add_button(show=False, label="D", pos=(449 + _x, 223 + _y), tag='0_hint', width=72,
+                       height=72, )  # X линейное +
+        dpg.add_button(show=False, label="A", pos=(269 + _x, 223 + _y), tag='1_hint', width=72,
+                       height=72)  # X линейное -
+
+        dpg.add_image_button(context.axis[1]['txt_p'], pos=(359 + _x, 134 + _y),
+                             tag=context.axis[1]['name'] + 'bnt_p')  # Y линейное
+        dpg.add_image_button(context.axis[1]['txt_m'], pos=(359 + _x, 313 + _y),
+                             tag=context.axis[1]['name'] + 'bnt_m')  # Y линейное
+        dpg.add_button(show=False, label="W", pos=(359 + _x, 134 + _y), tag='2_hint', width=72,
+                       height=72)  # Y линейное
+        dpg.add_button(show=False, label="S", pos=(359 + _x, 313 + _y), tag='3_hint', width=72,
+                       height=72)  # Y линейное
+
+        dpg.add_image_button(context.axis[2]['txt_p'], pos=(44 + _x, 134 + _y),
+                             tag=context.axis[2]['name'] + 'bnt_p')  # Z линейное
+        dpg.add_image_button(context.axis[2]['txt_m'], pos=(44 + _x, 313 + _y),
+                             tag=context.axis[2]['name'] + 'bnt_m')  # Z линейное
+        dpg.add_button(show=False, label="Q", pos=(44 + _x, 134 + _y), tag='4_hint', width=72,
+                       height=72)  # Z линейное
+        dpg.add_button(show=False, label="Z", pos=(44 + _x, 313 + _y), tag='5_hint', width=72,
+                       height=72)  # Z линейное
+
+        dpg.add_image_button(context.axis[3]['txt_p'], pos=(179 + _x, 179 + _y),
+                             tag=context.axis[3]['name'] + 'bnt_p')  # X вращение
+        dpg.add_image_button(context.axis[3]['txt_m'], pos=(179 + _x, 268 + _y),
+                             tag=context.axis[3]['name'] + 'bnt_m')  # X вращение
+        dpg.add_button(show=False, label="CTRL\n  +\n  W", pos=(179 + _x, 179 + _y), tag='6_hint',
+                       width=72, height=72)  # X вращение
+        dpg.add_button(show=False, label="CTRL\n  +\n  S", pos=(179 + _x, 268 + _y), tag='7_hint',
+                       width=72, height=72)  # X вращение
+
+        dpg.add_image_button(context.axis[4]['txt_p'], pos=(315 + _x, 45 + _y),
+                             tag=context.axis[4]['name'] + 'bnt_p')  # Y вращение
+        dpg.add_image_button(context.axis[4]['txt_m'], pos=(405 + _x, 45 + _y),
+                             tag=context.axis[4]['name'] + 'bnt_m')  # Y вращение
+        dpg.add_button(show=False, label="CTRL\n  +\n  A", pos=(315 + _x, 45 + _y), tag='8_hint',
+                       width=72, height=72)  # Y вращение
+        dpg.add_button(show=False, label="CTRL\n  +\n  D", pos=(405 + _x, 45 + _y), tag='9_hint',
+                       width=72, height=72)  # Y вращение
+
+        dpg.add_image_button(context.axis[5]['txt_p'], pos=(_x, 45 + _y),
+                             tag=context.axis[5]['name'] + 'bnt_p')  # Z вращение
+        dpg.add_image_button(context.axis[5]['txt_m'], pos=(90 + _x, 45 + _y),
+                             tag=context.axis[5]['name'] + 'bnt_m')  # Z вращение
+        dpg.add_button(show=False, label="CTRL\n  +\n  Q", pos=(_x, 45 + _y), tag='10_hint',
+                       width=72, height=72)  # Z вращение
+        dpg.add_button(show=False, label="CTRL\n  +\n  E", pos=(90 + _x, 45 + _y), tag='11_hint',
+                       width=72, height=72)  # Z вращение
+
+        # CAMERA
+        with dpg.group(pos=(500 + _x, 50 + _y), horizontal=True):
             with dpg.group(horizontal=False):
-                dpg.add_text("Левая платформа")
                 dpg.add_button(label="Z1", callback=lambda: self.move_z1(False))
                 dpg.add_button(label="Рыскание", callback=lambda: self.rotate_z(False))
-                dpg.add_button(label="Калибровать увеличение", callback=self.set_pix_per_step, user_data=False)
+                dpg.add_button(label="Увеличение", callback=self.set_pix_per_step, user_data=False)
 
                 dpg.add_button(label="Z2", callback=lambda: self.move_z2(False))
                 dpg.add_button(label="Y", callback=lambda: self.move_y(False))
@@ -814,143 +885,84 @@ class MotionGUI:
                 dpg.bind_item_handler_registry('group_123', "widget_handler")
 
             with dpg.group(horizontal=False):
-                dpg.add_text("Правая платформа")
                 dpg.add_button(label="Z1", callback=lambda: self.move_z1(True))
                 dpg.add_button(label="Рыскание", callback=lambda: self.rotate_z(True))
-                dpg.add_button(label="Калибровать увеличение", callback=self.set_pix_per_step, user_data=True)
+                dpg.add_button(label="Увеличение", callback=self.set_pix_per_step, user_data=True)
 
                 dpg.add_button(label="Z2", callback=lambda: self.move_z2(True))
                 dpg.add_button(label="Y", callback=lambda: self.move_y(True))
                 dpg.add_button(label="X", callback=lambda: self.move_x(True))
 
-        stPayloadSize = MVCC_INTVALUE_EX()
-        ret_temp = self.obj_cam.MV_CC_GetIntValueEx("PayloadSize", stPayloadSize)
-        if ret_temp != MV_OK:
-            return
-
-        dpg.add_image_button(context.axis[0]['txt_p'], pos=(494 + left_margin, 223 + top_margin),
-                             tag=context.axis[0]['name'] + 'bnt_p')  # X линейное +
-        dpg.add_image_button(context.axis[0]['txt_m'], pos=(314 + left_margin, 223 + top_margin),
-                             tag=context.axis[0]['name'] + 'bnt_m')  # X линейное -
-        dpg.add_button(show=False, label="D", pos=(494 + left_margin, 223 + top_margin), tag='0_hint', width=72,
-                       height=72, )  # X линейное +
-        dpg.add_button(show=False, label="A", pos=(314 + left_margin, 223 + top_margin), tag='1_hint', width=72,
-                       height=72)  # X линейное -
-
-        dpg.add_image_button(context.axis[1]['txt_p'], pos=(404 + left_margin, 134 + top_margin),
-                             tag=context.axis[1]['name'] + 'bnt_p')  # Y линейное
-        dpg.add_image_button(context.axis[1]['txt_m'], pos=(404 + left_margin, 313 + top_margin),
-                             tag=context.axis[1]['name'] + 'bnt_m')  # Y линейное
-        dpg.add_button(show=False, label="W", pos=(404 + left_margin, 134 + top_margin), tag='2_hint', width=72,
-                       height=72)  # Y линейное
-        dpg.add_button(show=False, label="S", pos=(404 + left_margin, 313 + top_margin), tag='3_hint', width=72,
-                       height=72)  # Y линейное
-
-        dpg.add_image_button(context.axis[2]['txt_p'], pos=(89 + left_margin, 134 + top_margin),
-                             tag=context.axis[2]['name'] + 'bnt_p')  # Z линейное
-        dpg.add_image_button(context.axis[2]['txt_m'], pos=(89 + left_margin, 313 + top_margin),
-                             tag=context.axis[2]['name'] + 'bnt_m')  # Z линейное
-        dpg.add_button(show=False, label="Q", pos=(89 + left_margin, 134 + top_margin), tag='4_hint', width=72,
-                       height=72)  # Z линейное
-        dpg.add_button(show=False, label="Z", pos=(89 + left_margin, 313 + top_margin), tag='5_hint', width=72,
-                       height=72)  # Z линейное
-
-        dpg.add_image_button(context.axis[3]['txt_p'], pos=(224 + left_margin, 179 + top_margin),
-                             tag=context.axis[3]['name'] + 'bnt_p')  # X вращение
-        dpg.add_image_button(context.axis[3]['txt_m'], pos=(224 + left_margin, 268 + top_margin),
-                             tag=context.axis[3]['name'] + 'bnt_m')  # X вращение
-        dpg.add_button(show=False, label="CTRL\n  +\n  W", pos=(224 + left_margin, 179 + top_margin), tag='6_hint',
-                       width=72, height=72)  # X вращение
-        dpg.add_button(show=False, label="CTRL\n  +\n  S", pos=(224 + left_margin, 268 + top_margin), tag='7_hint',
-                       width=72, height=72)  # X вращение
-
-        dpg.add_image_button(context.axis[4]['txt_p'], pos=(360 + left_margin, 45 + top_margin),
-                             tag=context.axis[4]['name'] + 'bnt_p')  # Y вращение
-        dpg.add_image_button(context.axis[4]['txt_m'], pos=(450 + left_margin, 45 + top_margin),
-                             tag=context.axis[4]['name'] + 'bnt_m')  # Y вращение
-        dpg.add_button(show=False, label="CTRL\n  +\n  A", pos=(360 + left_margin, 45 + top_margin), tag='8_hint',
-                       width=72, height=72)  # Y вращение
-        dpg.add_button(show=False, label="CTRL\n  +\n  D", pos=(450 + left_margin, 45 + top_margin), tag='9_hint',
-                       width=72, height=72)  # Y вращение
-
-        dpg.add_image_button(context.axis[5]['txt_p'], pos=(45 + left_margin, 45 + top_margin),
-                             tag=context.axis[5]['name'] + 'bnt_p')  # Z вращение
-        dpg.add_image_button(context.axis[5]['txt_m'], pos=(135 + left_margin, 45 + top_margin),
-                             tag=context.axis[5]['name'] + 'bnt_m')  # Z вращение
-        dpg.add_button(show=False, label="CTRL\n  +\n  Q", pos=(45 + left_margin, 45 + top_margin), tag='10_hint',
-                       width=72, height=72)  # Z вращение
-        dpg.add_button(show=False, label="CTRL\n  +\n  E", pos=(135 + left_margin, 45 + top_margin), tag='11_hint',
-                       width=72, height=72)  # Z вращение
         # TABLE BUTTONS
-        dpg.add_image_button(context.axis[12]['txt_p'], pos=(584 + left_margin, 45 + top_margin),
+        dpg.add_image_button(context.axis[12]['txt_p'], pos=(750 + _x, -45 + _y),
                              tag=context.axis[12]['name'] + 'bnt_p')  # Y СТОЛ
-        dpg.add_image_button(context.axis[12]['txt_m'], pos=(584 + left_margin, 313 + top_margin),
+        dpg.add_image_button(context.axis[12]['txt_m'], pos=(750 + _x, 460 + _y),
                              tag=context.axis[12]['name'] + 'bnt_m')  # Y СТОЛ
-        dpg.add_button(show=False, label="U", pos=(584 + left_margin, 45 + top_margin), tag='12_hint', width=72,
+        dpg.add_button(show=False, label="U", pos=(539 + _x, 45 + _y), tag='12_hint', width=72,
                        height=72)  # Y СТОЛ
-        dpg.add_button(show=False, label="J", pos=(584 + left_margin, 313 + top_margin), tag='13_hint', width=72,
+        dpg.add_button(show=False, label="J", pos=(539 + _x, 313 + _y), tag='13_hint', width=72,
                        height=72)  # Y СТОЛ
 
         # RIGHT PLATFORM BUTTONS
-        dpg.add_image('texture_table', pos=(590 + left_margin, 150 + top_margin))
-        right_manipulator = left_margin + 360
-        dpg.add_image('texture_xy', pos=(404 + right_manipulator, 223 + top_margin))
-        dpg.add_image('texture_z', pos=(720 + right_manipulator, 223 + top_margin))
-        dpg.add_image_button(context.axis[6]['txt_p'], pos=(494 + right_manipulator, 223 + top_margin),
+        # dpg.add_image('texture_table', pos=(590 + _x, 150 + _y))
+        _x2 = _x + 800
+        dpg.add_image('texture_xy', pos=(404 + _x2, 223 + _y))
+        dpg.add_image('texture_z', pos=(720 + _x2, 223 + _y))  # +100 - 50 -10
+        dpg.add_image_button(context.axis[6]['txt_p'], pos=(494 + _x2, 223 + _y),
                              tag=context.axis[6]['name'] + 'bnt_p')  # X линейное
-        dpg.add_image_button(context.axis[6]['txt_m'], pos=(314 + right_manipulator, 223 + top_margin),
+        dpg.add_image_button(context.axis[6]['txt_m'], pos=(314 + _x2, 223 + _y),
                              tag=context.axis[6]['name'] + 'bnt_m')  # X линейное
-        dpg.add_button(show=False, label="NUM 6", pos=(494 + right_manipulator, 223 + top_margin), tag='14_hint',
+        dpg.add_button(show=False, label="NUM 6", pos=(494 + _x2, 223 + _y), tag='14_hint',
                        width=72, height=72)  # X линейное
-        dpg.add_button(show=False, label="NUM 4", pos=(314 + right_manipulator, 223 + top_margin), tag='15_hint',
+        dpg.add_button(show=False, label="NUM 4", pos=(314 + _x2, 223 + _y), tag='15_hint',
                        width=72, height=72)  # X линейное
 
-        dpg.add_image_button(context.axis[7]['txt_p'], pos=(404 + right_manipulator, 134 + top_margin),
+        dpg.add_image_button(context.axis[7]['txt_p'], pos=(404 + _x2, 134 + _y),
                              tag=context.axis[7]['name'] + 'bnt_p')  # Y линейное
-        dpg.add_image_button(context.axis[7]['txt_m'], pos=(404 + right_manipulator, 313 + top_margin),
+        dpg.add_image_button(context.axis[7]['txt_m'], pos=(404 + _x2, 313 + _y),
                              tag=context.axis[7]['name'] + 'bnt_m')  # Y линейное
-        dpg.add_button(show=False, label="NUM 8", pos=(404 + right_manipulator, 134 + top_margin), tag='16_hint',
+        dpg.add_button(show=False, label="NUM 8", pos=(404 + _x2, 134 + _y), tag='16_hint',
                        width=72, height=72)  # Y линейное
-        dpg.add_button(show=False, label="NUM 2", pos=(404 + right_manipulator, 313 + top_margin), tag='17_hint',
+        dpg.add_button(show=False, label="NUM 2", pos=(404 + _x2, 313 + _y), tag='17_hint',
                        width=72, height=72)  # Y линейное
 
-        dpg.add_image_button(context.axis[8]['txt_p'], pos=(720 + right_manipulator, 134 + top_margin),
+        dpg.add_image_button(context.axis[8]['txt_p'], pos=(720 + _x2, 134 + _y),
                              tag=context.axis[8]['name'] + 'bnt_p')  # Z линейное
-        dpg.add_image_button(context.axis[8]['txt_m'], pos=(720 + right_manipulator, 313 + top_margin),
+        dpg.add_image_button(context.axis[8]['txt_m'], pos=(720 + _x2, 313 + _y),
                              tag=context.axis[8]['name'] + 'bnt_m')  # Z линейное
-        dpg.add_button(show=False, label="NUM 7", pos=(720 + right_manipulator, 134 + top_margin), tag='18_hint',
+        dpg.add_button(show=False, label="NUM 7", pos=(720 + _x2, 134 + _y), tag='18_hint',
                        width=72, height=72)  # Z линейное
-        dpg.add_button(show=False, label="NUM 1", pos=(720 + right_manipulator, 313 + top_margin), tag='19_hint',
+        dpg.add_button(show=False, label="NUM 1", pos=(720 + _x2, 313 + _y), tag='19_hint',
                        width=72, height=72)  # Z линейное
 
-        dpg.add_image_button(context.axis[9]['txt_p'], pos=(585 + right_manipulator, 179 + top_margin),
+        dpg.add_image_button(context.axis[9]['txt_p'], pos=(585 + _x2, 179 + _y),
                              tag=context.axis[9]['name'] + 'bnt_p')  # X вращение
-        dpg.add_image_button(context.axis[9]['txt_m'], pos=(585 + right_manipulator, 268 + top_margin),
+        dpg.add_image_button(context.axis[9]['txt_m'], pos=(585 + _x2, 268 + _y),
                              tag=context.axis[9]['name'] + 'bnt_m')  # X вращение
-        dpg.add_button(show=False, label="CTRL\n  +\nNUM 8", pos=(585 + right_manipulator, 179 + top_margin),
+        dpg.add_button(show=False, label="CTRL\n  +\nNUM 8", pos=(585 + _x2, 179 + _y),
                        tag='20_hint', width=72, height=72)  # X вращение
-        dpg.add_button(show=False, label="CTRL\n  +\nNUM 2", pos=(585 + right_manipulator, 268 + top_margin),
+        dpg.add_button(show=False, label="CTRL\n  +\nNUM 2", pos=(585 + _x2, 268 + _y),
                        tag='21_hint', width=72, height=72)  # X вращение
 
-        dpg.add_image_button(context.axis[10]['txt_p'], pos=(360 + right_manipulator, 45 + top_margin),
+        dpg.add_image_button(context.axis[10]['txt_p'], pos=(360 + _x2, 45 + _y),
                              tag=context.axis[10]['name'] + 'bnt_p')  # Y вращение
-        dpg.add_image_button(context.axis[10]['txt_m'], pos=(450 + right_manipulator, 45 + top_margin),
+        dpg.add_image_button(context.axis[10]['txt_m'], pos=(450 + _x2, 45 + _y),
                              tag=context.axis[10]['name'] + 'bnt_m')  # Y вращение
-        dpg.add_button(show=False, label="CTRL\n  +\nNUM 4", pos=(360 + right_manipulator, 45 + top_margin),
+        dpg.add_button(show=False, label="CTRL\n  +\nNUM 4", pos=(360 + _x2, 45 + _y),
                        tag='22_hint', width=72, height=72)  # Y вращение
-        dpg.add_button(show=False, label="CTRL\n  +\nNUM 6", pos=(450 + right_manipulator, 45 + top_margin),
+        dpg.add_button(show=False, label="CTRL\n  +\nNUM 6", pos=(450 + _x2, 45 + _y),
                        tag='23_hint', width=72, height=72)  # Y вращение
 
-        dpg.add_image_button(context.axis[11]['txt_p'], pos=(675 + right_manipulator, 45 + top_margin),
+        dpg.add_image_button(context.axis[11]['txt_p'], pos=(675 + _x2, 45 + _y),
                              tag=context.axis[11]['name'] + 'bnt_p')  # Z вращение
-        dpg.add_image_button(context.axis[11]['txt_m'], pos=(765 + right_manipulator, 45 + top_margin),
+        dpg.add_image_button(context.axis[11]['txt_m'], pos=(765 + _x2, 45 + _y),
                              tag=context.axis[11]['name'] + 'bnt_m')  # Z вращение
-        dpg.add_button(show=False, label="CTRL\n  +\nNUM 7", pos=(675 + right_manipulator, 45 + top_margin),
+        dpg.add_button(show=False, label="CTRL\n  +\nNUM 7", pos=(675 + _x2, 45 + _y),
                        tag='24_hint', width=72, height=72)  # Z вращение
-        dpg.add_button(show=False, label="CTRL\n  +\nNUM 9", pos=(765 + right_manipulator, 45 + top_margin),
+        dpg.add_button(show=False, label="CTRL\n  +\nNUM 9", pos=(765 + _x2, 45 + _y),
                        tag='25_hint', width=72, height=72)  # Z вращение
 
-        with dpg.group(pos=(50, 470)):
+        with dpg.group(pos=(50, 800)):
             dpg.add_spacer(height=5)
             dpg.add_text(default_value=txt.SELECT_MOVE_MODE)
             dpg.add_radio_button(tag="rb_move_mode_sel", items=self.move_mode_list, horizontal=True,
@@ -958,14 +970,14 @@ class MotionGUI:
                                  callback=self.rb_move_mode_click)
 
         # Кнопки позиционирования
-        with dpg.group(pos=(300, 480)):
+        with dpg.group(pos=(300, 800)):
             with dpg.group(horizontal=True):
                 dpg.add_button(label=txt.INIT_PLATFORM_BTN, height=40, width=200,
                                callback=self.btn_init_plaform_click, tag="btn_init_platform")
                 context.gui_hlp.setBtnEnabled("btn_init_platform", True)
             context.gui_hlp.init_platforms_complete(False)
             # Управления скоростью и шагом
-        with dpg.group(pos=(600, 480)):
+        with dpg.group(pos=(600, 800)):
             with dpg.group(horizontal=True):
                 dpg.add_text(txt.SET_SPEED_BTN)
                 dpg.add_slider_int(label="", default_value=1000, max_value=15000, min_value=10, tag="SliderSpeed",

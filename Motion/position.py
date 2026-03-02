@@ -16,7 +16,7 @@ class Positions:
         pass
 
     def add_pos_window(self):
-        with dpg.window(tag="pos_window", label="Позиционирование", no_close=True, no_resize=True, pos=(1000, 500)):
+        with dpg.window(tag="pos_window", label="Позиционирование", no_close=True, no_resize=True, pos=(1400, 700)):
             #            with dpg.texture_registry(show=False):
             #                width, height, channels, data = dpg.load_image("Pics//positions.png")
             #                dpg.add_dynamic_texture(width=width, height=height, default_value=data, tag="texture_img")

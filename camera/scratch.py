@@ -1,9 +1,8 @@
 import cv2
 import numpy as np
 import dearpygui.dearpygui as dpg
-from numba import njit
 
-@njit
+
 def isHorizontal(line):
     x1, y1, x2, y2 = line[0], line[1], line[2], line[3]
     return abs(x2 - x1) > abs(y2 - y1)
@@ -64,7 +63,7 @@ def Mono_numpy_old(data, nWidth, nHeight):
     return numArray
 
 
-def Mono_numpy(data, nWidth, nHeight):
+def Mono_numpy(data, nWidth, nHeight) -> np.ndarray:
     bytes_as_np_array = np.frombuffer(data, count=int(nWidth * nHeight), dtype=np.uint8).reshape((nWidth, nHeight))
 
     return bytes_as_np_array
