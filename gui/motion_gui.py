@@ -198,6 +198,10 @@ def get_axis_params():
         dpg.set_value(context.axis[i]['name'] + "Dec", context.axis[i]['dec'])
 
 
+def move_table_(d):
+    context.ztable.move(AXIS_TABLE, d/UM_PER_STEP_TABLE)
+
+
 class MotionGUI:
 
     def __init__(self):
@@ -336,6 +340,17 @@ class MotionGUI:
         else:
             self.move_(1, ((self.v2b - self.v1b) - self.delta_y * self.v1k) / self.pix_per_step_b - offset)
 
+    def move_next_chip(self, right):
+        self.moving_right = right
+        offset = 100
+        offset_2 = 1000
+        chip_height = 5700
+        self.move_(1, -offset_2)
+        move_table_(-np.cos(self.angle1*np.pi/180)*chip_height)
+        sleep(2)
+        self.move_(1, (-np.sin(self.angle1*np.pi/180) * chip_height - offset)+offset_2)
+
+
     def set_pix_per_step(self, sender, app_data, user_data):
         prev_x = (self.v2b - self.v1b)
         delta_x = 200 * 8
@@ -376,21 +391,8 @@ class MotionGUI:
             resized = cv2.cvtColor(final, cv2.COLOR_RGB2GRAY)
             chip2_img = resized[y3:y4, x3:x4].copy()
             chip_img = resized[y1:y2, x1:x2].copy()
-            th1 = dpg.get_value("th1")
             ret, chip2_img = cv2.threshold(chip2_img, 140, 255, cv2.THRESH_BINARY)
-            kernel = np.ones((3,3), np.uint8)
-            # chip2_img = cv2.erode(chip2_img, kernel, iterations=1)
 
-            # edges_img = cv2.Canny(chip2_img, th3, th4)
-
-            # chip_img *= 255
-            # chip_img = cv2.cvtColor(chip_img, cv2.COLOR_GRAY2RGB)
-            # cv2.normalize(chip_img, chip_img, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
-            # cv2.normalize(chip2_img, chip2_img, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
-
-            th2 = dpg.get_value("th2")
-            th3 = dpg.get_value("th3")  # 49, яркость 1
-            th4 = dpg.get_value("th4")
             detector_left = cv2.ximgproc.createFastLineDetector(length_threshold=36,
                                                                 distance_threshold=6,
                                                                 canny_th1=175,
@@ -402,12 +404,9 @@ class MotionGUI:
                                                                  canny_th1=204,
                                                                  canny_th2=229,
                                                                  canny_aperture_size=3, do_merge=True)
-            # ret, chip_img = cv2.threshold(chip_img, th3, 255, cv2.THRESH_BINARY)
-            # ret, chip2_img = cv2.threshold(chip2_img, th3, 255, cv2.THRESH_BINARY)
+
             self.lines_ = detector_left.detect(chip_img)
             self.lines_2 = detector_right.detect(chip2_img)
-            chip2_img = cv2.cvtColor(chip2_img, cv2.COLOR_GRAY2RGB)
-            # final[y3:y4, x3:x4] = chip2_img
             horizontal_1_x = []
             horizontal_1_y = []
             horizontal_2_x = []
@@ -453,21 +452,8 @@ class MotionGUI:
                 horizontal_2_y[i] += y3
 
             # new
-            # cv2.threshold(resized, 180, 255, cv2.THRESH_TOZERO_INV, dst=resized)
             chip2_img = resized[y3:y4, x3:x4].copy()
             chip_img = resized[y1:y2, x1:x2].copy()
-
-            # ret, chip_img = cv2.threshold(chip_img, th3, 255, cv2.THRESH_BINARY)
-            # ret, chip2_img = cv2.threshold(chip2_img, th5, 255, cv2.THRESH_BINARY)
-            # ret, chip2_img = cv2.threshold(chip2_img, th3, 255, cv2.THRESH_BINARY)
-            # cnt, hierarchy = cv2.findContours(chip2_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
-            # if hierarchy is not None:
-            #     print(hierarchy)
-            #     hull = cv2.convexHull(cnt)
-            #     cv2.drawContours(chip2_img, cnt, -1, (0,0,255), 3)
-            #     # chip2_img = cv2.adaptiveThreshold(chip2_img, 255, cv2.CALIB_CB_ADAPTIVE_THRESH, cv2.THRESH_BINARY, 11, th3)
-
             self.lines_3 = detector_left.detect(chip_img)
             self.lines_4 = detector_right.detect(chip2_img)
             vertical_1_x = []
@@ -508,6 +494,7 @@ class MotionGUI:
             if len(vertical_1_x) > 0:
                 m, b = np.polyfit(vertical_1_y, vertical_1_x, 1)
                 self.angle1 = np.atan(m) * 180 / np.pi
+                print(self.angle1)
                 cv2.line(final, (int(get_y(0, m, b)), 0),
                          (int(get_y(int(width), m, b)), int(width)),
                          (0, 255, 0),
@@ -515,14 +502,6 @@ class MotionGUI:
                 self.v1b = b
                 self.v1k = m
             if len(vertical_2_x) > 0:
-                # cur_max_length = 0
-                # best_index = 0
-                # for i in range(0, len(vertical_2_x)//2, 2):
-                #     line_length = ((vertical_2_x[i]-vertical_2_x[i+1])**2+(vertical_2_y[i]-vertical_2_y[i+1])**2)**0.5
-                #     if cur_max_length < line_length:
-                #         cur_max_length = line_length
-                #         best_index = i
-                # print(best_index)
                 m, b = np.polyfit(vertical_2_y, vertical_2_x, 1)  # [best_index: best_index+2]
                 self.angle2 = np.atan(m) * 180 / np.pi
                 cv2.line(final, (int(get_y(0, m, b)), 0),
@@ -544,9 +523,6 @@ class MotionGUI:
                 i = 2 * 1
                 self.ax, self.ay = int(vertical_2_x[i]), int(vertical_2_y[i])
                 self.bx, self.by = int(vertical_2_x[i + 1]), int(vertical_2_y[i + 1])
-            # if len(horizontal_2_x) > 4:
-            #   self.ax, self.ay = int(horizontal_2_x[0]), int(horizontal_2_y[0])
-            #   self.bx, self.by = int(horizontal_2_x[2]), int(horizontal_2_y[2])
             for i in range(0, len(vertical_1_x), 2):
                 cv2.line(final, (int(vertical_1_x[i]), int(vertical_1_y[i])),
                          (int(vertical_1_x[i + 1]), int(vertical_1_y[i + 1])),
@@ -555,21 +531,6 @@ class MotionGUI:
                 cv2.line(final, (int(vertical_2_x[i]), int(vertical_2_y[i])),
                          (int(vertical_2_x[i + 1]), int(vertical_2_y[i + 1])),
                          (255, 0, 0), line_thickness)  # 0.05 * self.val
-            x_arr = []
-            for i in range(0, len(horizontal_2_y), 2):
-                line = [horizontal_2_x[i], horizontal_2_y[i], horizontal_2_x[i + 1], horizontal_2_y[i + 1]]
-                # print(get_b(line))
-                # print(get_k(line))
-
-            # cv2.circle(final, (self.ax, self.ay), 50, (255, 0, 0), line_thickness * 2)
-            # cv2.circle(final, (self.bx, self.by), 50, (255, 0, 0), line_thickness * 2)
-            # cv2.circle(final, (cx, cy), 50, (255, 0, 0), line_thickness * 2)
-            # cv2.circle(final, (x2, y2), int(2/100*width), (255, 255, 0), line_thickness)
-            # cv2.circle(final, (x3, y3), int(2/100*width), (255, 255, 0), line_thickness)
-            # cv2.circle(final, (x4, y4), int(2/100*width), (255, 255, 0), line_thickness)
-
-            # cv2.circle(final, (self.y1, y4), int(2/100*self.width), (255, 255, 0), int(1*self.width/1000))
-
             return final, horizontal_1_x, horizontal_1_y, vertical_1_x, horizontal_2_y, vertical_2_x
 
         def func2():
@@ -621,7 +582,6 @@ class MotionGUI:
                     self.y1 -= min_dy
                     self.move_(2, min_dy / self.pix_per_step - 20)
                     self.moving_y = False
-                    self.move_(3, 400 - 200 + 34)
             if not self.moving_y:
                 cv2.line(final, (int(0), int(self.y1)),
                          (int(500), int(self.y1)),
@@ -940,6 +900,7 @@ class MotionGUI:
                 dpg.add_button(label="Z2", callback=lambda: self.move_z2(False))
                 dpg.add_button(label="Y", callback=lambda: self.move_y(False))
                 dpg.add_button(label="X", callback=lambda: self.move_x(False))
+                dpg.add_button(label="следующий чип", callback=lambda: self.move_next_chip(False))
             with dpg.group(horizontal=False):
                 dpg.add_slider_int(label="length", default_value=int(255 * 0.5), max_value=255, min_value=1, tag="th1",
                                    width=250)
@@ -965,6 +926,7 @@ class MotionGUI:
                 dpg.add_button(label="Z2", callback=lambda: self.move_z2(True))
                 dpg.add_button(label="Y", callback=lambda: self.move_y(True))
                 dpg.add_button(label="X", callback=lambda: self.move_x(True))
+                dpg.add_button(label="следующий чип", callback=lambda: self.move_next_chip(True))
 
         # TABLE BUTTONS
         dpg.add_image_button(context.axis[12]['txt_p'], pos=(750 + __x, -45 + __y),
