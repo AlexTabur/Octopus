@@ -228,6 +228,14 @@ class MeasureSpectrumZero:
             context.is_meas_in_process = False
             context.gui_hlp.popup_close()
 
+    def exec_zero_measure_sync(self):
+        context.is_meas_in_process = True
+
+        if context.break_proc is False:
+            np.save(r'Config\spectrum_zero.npy', context.spectrum_zero)
+        context.is_meas_in_process = False
+        context.gui_hlp.popup_close()
+
     def show_zero_chart(self):
         arr_len = len(context.spectrum_zero)  # int((self.stop_len-self.start_len) / self.step)+1
         ser_data_x = np.zeros(arr_len)

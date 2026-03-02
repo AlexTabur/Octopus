@@ -283,7 +283,7 @@ class MotionGUI:
         self.n_w, self.n_h = 5120, 5120
         self.width = int(self.n_w * self.val / 100)
         self.minLineLength = 10 / 1000 * self.width
-        self.maxLineGap = 0.5 / 100 * self.width
+        self.maxLineGap = 100 / 100 * self.width
         self.c_x, self.c_y = int(self.width / 2), int(self.width / 2)
         self.mask = cv2.circle(np.zeros((int(5120 * self.val / 100), int(5120 * self.val / 100)), dtype="uint8"),
                                (self.c_x, self.c_y), self.c_x - 300, 255, -1)

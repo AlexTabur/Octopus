@@ -33,7 +33,7 @@ class Syncronizer:
 
     def connect(self):
         if self.port_num is None:
-            return False
+            self.port_num = "COM3"
         self.connection = Com(comport=self.port_num, timeout=self.timeout, baudrate=self.baudrate)
         if self.connection:
             self.connection.connect()

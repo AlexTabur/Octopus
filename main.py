@@ -220,6 +220,7 @@ with dpg.window(tag="main_window", no_resize=True):
 dpg.create_viewport(title=txt.MAIN_TITLE, width=context.main_width, height=context.main_height)
 dpg.setup_dearpygui()
 dpg.show_viewport()
+dpg.maximize_viewport()
 dpg.set_primary_window("main_window", True)
 
 # dpg.start_dearpygui()

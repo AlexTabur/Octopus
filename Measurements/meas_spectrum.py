@@ -285,14 +285,8 @@ class MeasureSpectrum:
                     return idx
             return -1
 
-        # def copy_to_chart(wl, arr_idx):
-        #     z_idx = find_zero_arr_idx(wl)
-        #     for i in range(60):
-        #         val = float(context.pm_values[i])
-        #         if z_idx == -1:
-        #             zero_lvl = 0
-        #         else:
-        #             zero_lvl = context.spectrum_zero[z_idx]['pow'][i]
+
+        # zero_lvl = context.spectrum_zero[z_idx]['pow'][i]
         #         value = val - zero_lvl
         #         if cut_off_lvl > value:
         #             value = cut_off_lvl
