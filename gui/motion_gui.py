@@ -2,6 +2,8 @@ import threading
 from threading import Timer
 from time import sleep
 
+import cv2
+import numpy as np
 from pynput import keyboard
 from win32gui import GetWindowText, GetForegroundWindow
 
@@ -199,7 +201,8 @@ def get_axis_params():
 class MotionGUI:
 
     def __init__(self):
-
+        self.delta_y = 0
+        self.pix_per_step_b = 500
         self.lines_2 = None
         self.moving_y = False
         self.y1 = 0
@@ -227,6 +230,7 @@ class MotionGUI:
         self.v1b = None
         self.v2b = None
         self.fixed = False
+        self.width = 2560
         self.lines_ = []
         self.buf_grab_image = None
         self.platform_list = [txt.LEFT, txt.RIGHT]
@@ -276,17 +280,7 @@ class MotionGUI:
         if ret_temp != MV_OK:
             return
         self.NeedBufSize = int(stPayloadSize.nCurValue)
-        self.val = 100
-        self.val2 = 3
-        self.rho = 200
-        self.theta = np.pi / 180
-        self.n_w, self.n_h = 5120, 5120
-        self.width = int(self.n_w * self.val / 100)
-        self.minLineLength = 10 / 1000 * self.width
-        self.maxLineGap = 100 / 100 * self.width
-        self.c_x, self.c_y = int(self.width / 2), int(self.width / 2)
-        self.mask = cv2.circle(np.zeros((int(5120 * self.val / 100), int(5120 * self.val / 100)), dtype="uint8"),
-                               (self.c_x, self.c_y), self.c_x - 300, 255, -1)
+        self.obj_cam.MV_CC_SetFloatValue("ExposureTime", float(1000))
         self.last_photo_taken = time.time()
         if self.buf_grab_image_size < self.NeedBufSize:
             self.buf_grab_image = (self.NeedBufSize * ctypes.c_ubyte)()
@@ -340,13 +334,14 @@ class MotionGUI:
         self.moving_right = right
         offset = 100
         if right:
-            self.move_(1, (self.v2b - self.v1b) / np.sqrt(self.v1k ** 2 + 1) - offset)
+            self.move_(1, ((self.v2b - self.v1b) - self.delta_y*self.v1k)/self.pix_per_step_b - offset)
         else:
-            self.move_(1, (self.v2b - self.v1b) / np.sqrt(self.v2k ** 2 + 1) - offset)
+            self.move_(1, ((self.v2b - self.v1b) - self.delta_y*self.v1k)/self.pix_per_step_b - offset)
 
     def set_pix_per_step(self, sender, app_data, user_data):
-        prev_x = (self.v2b - self.v1b) / np.sqrt(self.v1k ** 2 + 1)
+        prev_x = (self.v2b - self.v1b)
         print("prev: ", prev_x)
+        delta_x = 200*8
         if user_data:
             axis = context.axis[context.x2_line_i]['idx']
         else:
@@ -355,80 +350,77 @@ class MotionGUI:
             context.current_axis = axis
             if context.zplatform.is_connected:
                 # print("moving on axis = ", abs(context.current_axis))
-                context.zplatform.move(axis, -200 * 8)
+                context.zplatform.move(axis, -delta_x)
 
             else:
                 print("not connected")
 
         sleep(3)
-        x = (self.v2b - self.v1b) / np.sqrt(self.v1k ** 2 + 1)
-        self.pix_per_step = np.abs(x - prev_x) / (8 * 200)
+        x = (self.v2b - self.v1b)
+        self.pix_per_step = np.abs(x - prev_x) / delta_x / (self.v1k**2+1)
+        self.pix_per_step_b = np.abs(x - prev_x) / delta_x
         print("pix per step", self.pix_per_step)
 
 
-    def click_callback(self):
-        a = np.array(dpg.get_mouse_pos(local=False))
-        b = np.array(dpg.get_item_pos("group_123"))
-        if self.pos_1 is None:
-            self.pos_1 = a - b
-
-        elif self.pos_2 is None:
-            self.pos_2 = a - b
-
-        elif self.pos_3 is None:
-            self.pos_3 = a - b
-
-        elif self.pos_4 is None:
-            self.pos_4 = a - b
-
-        else:
-            self.pos_1 = None
-            self.pos_2 = None
-            self.pos_3 = None
-            self.pos_4 = None
 
     def run_task(self):
+        n_w, n_h = 5120, 5120
+
         while True:
             self.obj_cam.MV_CC_GetOneFrameTimeout(self.buf_grab_image, self.buf_grab_image_size, self.stFrameInfo)
+            resized = Mono_numpy(self.buf_grab_image, n_w, n_h)
+            th3 = dpg.get_value("th3")
 
-            resized = Mono_numpy(self.buf_grab_image, self.n_w, self.n_h)[:1000, :1000]
-            normalized_image = resized.copy()
+            #ret, final = cv2.threshold(resized, th3, 255, cv2.THRESH_BINARY)
+            # final = cv2.cvtColor(final, cv2.COLOR_GRAY2RGB)
+            final = cv2.cvtColor(resized, cv2.COLOR_GRAY2RGB)
+            rois = dpg.get_plot_query_rects("plot_camera")
+            if len(rois) == 2:
+                x1, y1, x2, y2 = rois[0][0], rois[0][1], rois[0][2], rois[0][3]
+                x3, y3, x4, y4 = rois[1][0], rois[1][1], rois[1][2], rois[1][3]
+                zoom = 5120 / self.width
+                x1, x2, x3, x4 = int(x1 * zoom), int(x2 * zoom), int(x3 * zoom), int(x4 * zoom)
+                y1, y2, y3, y4 = int(5120 - y1 * zoom), int(5120 - y2 * zoom), int(5120 - y3 * zoom), int(
+                    5120 - y4 * zoom)
+                x1, x2 = min(x1, x2), max(x1, x2)
+                x3, x4 = min(x3, x4), max(x3, x4)
+                y1, y2 = min(y1, y2), max(y1, y2)
+                y3, y4 = min(y3, y4), max(y3, y4)
 
-            final = cv2.cvtColor(normalized_image, cv2.COLOR_GRAY2RGB)
-            if self.pos_1 is not None and self.pos_2 is not None and self.pos_3 is not None and self.pos_4 is not None:
-                a = (self.pos_1 / 400 * 1000).astype(int)
-                b = (self.pos_2 / 400 * 1000).astype(int)
-                c = (self.pos_3 / 400 * 1000).astype(int)
-                d = (self.pos_4 / 400 * 1000).astype(int)
-                x1, y1 = a
-                x2, y2 = b
-                x3, y3 = c
-                x4, y4 = d
-                th1 = 3.8 * 255  # dpg.get_value("th1")
-                th2 = 3.9 * 255  # dpg.get_value("th2")
-                # print(x1, y1, x2, y2, x3, y3, x4, y4)
-                chip_img = resized[y3:y4, x3:x4].copy()
-                resized = resized[y1:y2, x1:x2]
-                cv2.normalize(chip_img, chip_img, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
-                cv2.normalize(resized, resized, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
-                detector = cv2.ximgproc.createFastLineDetector(length_threshold=int(self.minLineLength),
-                                                               distance_threshold=int(self.maxLineGap),
+                th1 = dpg.get_value("th1")
+                th2 = dpg.get_value("th2")
+                th4 = dpg.get_value("th4")
+
+                width2 = 5120  # 1000 # min(int((x2-x1)**2+(y2-y1)**2), int((x4-x3)**2+(y4-y3)**2))
+                width = 5120  # int(x2-x1)
+                minLineLength = int(0.5 / 100 * width2)
+                maxLineGap = int(0.02 / 100 * width2)
+                chip2_img = resized[y3:y4, x3:x4].copy()
+                chip_img = resized[y1:y2, x1:x2].copy()
+                line_thickness = max(int(0.1 * width / 1000), 1)
+
+
+                # ret, chip_img = cv2.threshold(chip_img, 256//3, 255, cv2.THRESH_BINARY)
+
+                # chip_img *= 255
+                # chip_img = cv2.cvtColor(chip_img, cv2.COLOR_GRAY2RGB)
+                # print(chip_img)
+                # cv2.normalize(chip_img, chip_img, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
+                # cv2.normalize(resized, resized, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
+                detector = cv2.ximgproc.createFastLineDetector(length_threshold=minLineLength,
+                                                               distance_threshold=maxLineGap,
                                                                canny_th1=th1,
                                                                canny_th2=th2,
                                                                canny_aperture_size=5, do_merge=True)
-                self.lines_ = detector.detect(resized)
-                self.lines_2 = detector.detect(chip_img)
-                resized = cv2.cvtColor(resized, cv2.COLOR_GRAY2RGB)
-                chip_img = cv2.cvtColor(chip_img, cv2.COLOR_GRAY2RGB)
-                vertical_1_x = []
-                vertical_1_y = []
-                vertical_2_x = []
-                vertical_2_y = []
+
+                ret, chip_img = cv2.threshold(chip_img, th3, 255, cv2.THRESH_BINARY)
+                ret, chip2_img = cv2.threshold(chip2_img, th3, 255, cv2.THRESH_BINARY)
+                self.lines_ = detector.detect(chip_img)
+                self.lines_2 = detector.detect(chip2_img)
                 horizontal_1_x = []
                 horizontal_1_y = []
                 horizontal_2_x = []
                 horizontal_2_y = []
-
                 if self.lines_ is not None:
                     if len(self.lines_) > 1:
                         for line in self.lines_:
@@ -444,12 +436,6 @@ class MotionGUI:
                                     horizontal_1_y.append(line_[3])
                                     horizontal_1_x.append(line_[0])
                                     horizontal_1_y.append(line_[1])
-                            else:
-                                vertical_1_x.append(line_[0])
-                                vertical_1_y.append(line_[1])
-                                vertical_1_x.append(line_[2])
-                                vertical_1_y.append(line_[3])
-
                 if self.lines_2 is not None:
                     if len(self.lines_2) > 1:
                         for line in self.lines_2:
@@ -465,6 +451,47 @@ class MotionGUI:
                                     horizontal_2_y.append(line__[3])
                                     horizontal_2_x.append(line__[0])
                                     horizontal_2_y.append(line__[1])
+
+                for i in range(len(horizontal_1_x)):
+                    horizontal_1_x[i] += x1
+                for i in range(len(horizontal_1_y)):
+                    horizontal_1_y[i] += y1
+                for i in range(len(horizontal_2_x)):
+                    horizontal_2_x[i] += x3
+                for i in range(len(horizontal_2_y)):
+                    horizontal_2_y[i] += y3
+
+                # new
+                th3 = 53 # dpg.get_value("th3")  # 49, яркость 1
+                chip2_img = resized[y3:y4, x3:x4].copy()
+                chip_img = resized[y1:y2, x1:x2].copy()
+                ret, chip_img = cv2.threshold(chip_img, th3, 255, cv2.THRESH_BINARY)
+                ret, chip2_img = cv2.threshold(chip2_img, th3, 255, cv2.THRESH_BINARY)
+                self.lines_3 = detector.detect(chip_img)
+                self.lines_4 = detector.detect(chip2_img)
+                vertical_1_x = []
+                vertical_1_y = []
+                vertical_2_x = []
+                vertical_2_y = []
+
+                if self.lines_3 is not None:
+                    if len(self.lines_3) > 1:
+                        for line in self.lines_3:
+                            line_ = line[0]
+                            if isHorizontal(line_):
+                                pass
+                            else:
+                                vertical_1_x.append(line_[0])
+                                vertical_1_y.append(line_[1])
+                                vertical_1_x.append(line_[2])
+                                vertical_1_y.append(line_[3])
+
+                if self.lines_4 is not None:
+                    if len(self.lines_4) > 1:
+                        for line in self.lines_4:
+                            line__ = line[0]
+                            if isHorizontal(line__):
+                                pass
                             else:
                                 vertical_2_x.append(line__[0])
                                 vertical_2_y.append(line__[1])
@@ -475,44 +502,54 @@ class MotionGUI:
                     vertical_1_x[i] += x1
                 for i in range(len(vertical_1_y)):
                     vertical_1_y[i] += y1
-                for i in range(len(horizontal_1_x)):
-                    horizontal_1_x[i] += x1
-                for i in range(len(horizontal_1_y)):
-                    horizontal_1_y[i] += y1
                 for i in range(len(vertical_2_x)):
                     vertical_2_x[i] += x3
                 for i in range(len(vertical_2_y)):
                     vertical_2_y[i] += y3
-                for i in range(len(horizontal_2_x)):
-                    horizontal_2_x[i] += x3
-                for i in range(len(horizontal_2_y)):
-                    horizontal_2_y[i] += y3
                 if len(vertical_1_x) > 0:
                     m, b = np.polyfit(vertical_1_y, vertical_1_x, 1)
                     self.angle1 = np.atan(m) * 180 / np.pi
                     cv2.line(final, (int(get_y(0, m, b)), 0),
-                             (int(get_y(int(self.width), m, b)), int(self.width)),
+                             (int(get_y(int(width), m, b)), int(width)),
                              (0, 255, 0),
-                             int(1))  # 0.1 * self.val
+                             line_thickness)  # 0.1 * self.val
                     self.v1b = b
                     self.v1k = m
                 if len(vertical_2_x) > 0:
-                    m, b = np.polyfit(vertical_2_y, vertical_2_x, 1)
+                    # cur_max_length = 0
+                    # best_index = 0
+                    # for i in range(0, len(vertical_2_x)//2, 2):
+                    #     line_length = ((vertical_2_x[i]-vertical_2_x[i+1])**2+(vertical_2_y[i]-vertical_2_y[i+1])**2)**0.5
+                    #     if cur_max_length < line_length:
+                    #         cur_max_length = line_length
+                    #         best_index = i
+                    # print(best_index)
+                    m, b = np.polyfit(vertical_2_y, vertical_2_x, 1)  # [best_index: best_index+2]
                     self.angle2 = np.atan(m) * 180 / np.pi
                     cv2.line(final, (int(get_y(0, m, b)), 0),
-                             (int(get_y(int(self.width), m, b)), int(self.width)),
+                             (int(get_y(int(width), m, b)), int(width)),
                              (0, 255, 0),
-                             int(1))  # 0.1 * self.val
+                             line_thickness)  # 0.1 * self.val
                     self.v2b = b
                     self.v2k = m
+                # end new
                 for i in range(0, len(horizontal_1_x), 2):
                     cv2.line(final, (int(horizontal_1_x[i]), int(horizontal_1_y[i])),
                              (int(horizontal_1_x[i + 1]), int(horizontal_1_y[i + 1])),
-                             (255, 0, 0), int(1))  # 0.1 * self.val
+                             (255, 0, 0), line_thickness)  # 0.1 * self.val
                 for i in range(0, len(horizontal_2_x), 2):
                     cv2.line(final, (int(horizontal_2_x[i]), int(horizontal_2_y[i])),
                              (int(horizontal_2_x[i + 1]), int(horizontal_2_y[i + 1])),
-                             (255, 0, 0), int(1))  # 0.05 * self.val
+                             (255, 0, 0), line_thickness)  # 0.05 * self.val
+
+                # for i in range(0, len(vertical_1_x), 2):
+                #     cv2.line(final, (int(vertical_1_x[i]), int(vertical_1_y[i])),
+                #              (int(vertical_1_x[i + 1]), int(vertical_1_y[i + 1])),
+                #              (255, 0, 0), line_thickness)  # 0.1 * self.val
+                # for i in range(0, len(vertical_2_x), 2):
+                #     cv2.line(final, (int(vertical_2_x[i]), int(vertical_2_y[i])),
+                #              (int(vertical_2_x[i + 1]), int(vertical_2_y[i + 1])),
+                #              (255, 0, 0), line_thickness)  # 0.05 * self.val
 
                 if self.moving_z1:
                     if self.moving_right:
@@ -545,9 +582,9 @@ class MotionGUI:
                     if self.moving_right:
                         if len(horizontal_2_y) > 1:
                             for i in range(0, len(horizontal_1_y), 2):
-                                cv2.line(chip_img, (int(horizontal_1_x[i]), int(horizontal_1_y[i])),
+                                cv2.line(final, (int(horizontal_1_x[i]), int(horizontal_1_y[i])),
                                          (int(horizontal_1_x[i + 1]), int(horizontal_1_y[i + 1])),
-                                         (255, 255, 0), int(1))  # 0.2 * self.val
+                                         (255, 255, 0), line_thickness)  # 0.2 * self.val
                                 j = (len(horizontal_2_y) - 1) // 4 * 2
                                 dy = horizontal_2_y[j] - horizontal_1_y[i]
                                 if abs(dy) < abs(min_dy):
@@ -555,31 +592,28 @@ class MotionGUI:
                     else:
                         if len(horizontal_1_y) > 1:
                             for i in range(0, len(horizontal_2_y), 2):
-                                cv2.line(resized, (int(horizontal_2_x[i]), int(horizontal_2_y[i])),
-                                         (int(horizontal_2_x[i + 1]), int(horizontal_2_y[i + 1])),
-                                         (255, 255, 0), int(1))  # 0.2 * self.val
-                                j = (len(horizontal_1_y) - 1) // 4 * 2
-                                dy = horizontal_2_y[i] - horizontal_1_y[j]
+                                dy = horizontal_2_y[i] - self.y1
                                 if abs(dy) < abs(min_dy):
                                     min_dy = dy
                     print(min_dy)
                     if 1000 > abs(min_dy):
-                        self.move_(2, (min_dy) / self.pix_per_step - 127/2)
+                        self.delta_y = min_dy
+                        self.y1 -= min_dy
+                        self.move_(2, min_dy / self.pix_per_step - 127 / 2)
                         self.moving_y = False
                         self.move_(3, 400 - 200 + 34)
+                # cv2.circle(final, (x1, y1), int(2/100*width), (255, 255, 0), line_thickness)
+                # cv2.circle(final, (x2, y2), int(2/100*width), (255, 255, 0), line_thickness)
+                # cv2.circle(final, (x3, y3), int(2/100*width), (255, 255, 0), line_thickness)
+                # cv2.circle(final, (x4, y4), int(2/100*width), (255, 255, 0), line_thickness)
 
-                cv2.line(resized, (int(0), int(self.y1)),
-                         (int(self.c_x), int(self.y1)),
-                         (255, 255, 0), int(1))
-                cv2.line(resized, (int(0), int(self.y2)),
-                         (int(self.c_x), int(self.y2)),
-                         (255, 255, 0), int(1))  # 0.05 * self.val
-
-                # final[y1:y2, x1:x2] = resized
-                # final[y3:y4, x3:x4] = chip_img
-                # cv2.rectangle(final, a, b, (0, 255, 255), int(0.05 * self.val))
+                # cv2.circle(final, (self.y1, y4), int(2/100*self.width), (255, 255, 0), int(1*self.width/1000))
+                if not self.moving_y:
+                    cv2.line(final, (int(0), int(self.y1)),
+                         (int(500), int(self.y1)),
+                         (255, 255, 0), line_thickness)
             # z right -8002.0 -2402.0 -802.0 bruh 135.0
-            display_img("camera_1", cv2.resize(final, (400, 400), interpolation=cv2.INTER_AREA))
+            display_img("camera_1", cv2.resize(final, (self.width, self.width)))
 
     @staticmethod
     def loop():
@@ -810,9 +844,9 @@ class MotionGUI:
         __y = 140
         _x = 70
         __x = 70
-        scale = 500/973
+        scale = 500 / 973
 
-        dpg.add_image('texture_xyz', pos=(_x+w/2, _y+h/2), height=973 * scale, width=973 * scale)
+        dpg.add_image('texture_xyz', pos=(_x + w / 2, _y + h / 2), height=973 * scale, width=973 * scale)
 
         stPayloadSize = MVCC_INTVALUE_EX()
         ret_temp = self.obj_cam.MV_CC_GetIntValueEx("PayloadSize", stPayloadSize)
@@ -823,23 +857,47 @@ class MotionGUI:
                 dpg.add_theme_color(dpg.mvThemeCol_Button, (200, 200, 100, 0), category=dpg.mvThemeCat_Core)
                 dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 0, category=dpg.mvThemeCat_Core)
         # X линейное
-        dpg.bind_item_theme(dpg.add_button(pos=(_x + 970 * scale, _y + 635 * scale), tag=context.axis[0]['name'] + 'bnt_p', width=w, height=h), itheme)
-        dpg.bind_item_theme(dpg.add_button(pos=(_x + 185 * scale, _y + 635 * scale), tag=context.axis[0]['name'] + 'bnt_m', width=w, height=h), itheme)
+        dpg.bind_item_theme(
+            dpg.add_button(pos=(_x + 970 * scale, _y + 635 * scale), tag=context.axis[0]['name'] + 'bnt_p', width=w,
+                           height=h), itheme)
+        dpg.bind_item_theme(
+            dpg.add_button(pos=(_x + 185 * scale, _y + 635 * scale), tag=context.axis[0]['name'] + 'bnt_m', width=w,
+                           height=h), itheme)
         # Y линейное
-        dpg.bind_item_theme(dpg.add_button(pos=(_x + 420 * scale, _y + 553 * scale), tag=context.axis[1]['name'] + 'bnt_p', width=w, height=h), itheme)
-        dpg.bind_item_theme(dpg.add_button(pos=(_x + 100 * scale, _y + 875 * scale), tag=context.axis[1]['name'] + 'bnt_m', width=w, height=h), itheme)
+        dpg.bind_item_theme(
+            dpg.add_button(pos=(_x + 420 * scale, _y + 553 * scale), tag=context.axis[1]['name'] + 'bnt_p', width=w,
+                           height=h), itheme)
+        dpg.bind_item_theme(
+            dpg.add_button(pos=(_x + 100 * scale, _y + 875 * scale), tag=context.axis[1]['name'] + 'bnt_m', width=w,
+                           height=h), itheme)
         # Z линейное
-        dpg.bind_item_theme(dpg.add_button(pos=(_x + 343 * scale, _y + 0 * scale), tag=context.axis[2]['name'] + 'bnt_p', width=w, height=h), itheme)
-        dpg.bind_item_theme(dpg.add_button(pos=(_x + 343 * scale, _y + 785 * scale), tag=context.axis[2]['name'] + 'bnt_m', width=w, height=h), itheme)
+        dpg.bind_item_theme(
+            dpg.add_button(pos=(_x + 343 * scale, _y + 0 * scale), tag=context.axis[2]['name'] + 'bnt_p', width=w,
+                           height=h), itheme)
+        dpg.bind_item_theme(
+            dpg.add_button(pos=(_x + 343 * scale, _y + 785 * scale), tag=context.axis[2]['name'] + 'bnt_m', width=w,
+                           height=h), itheme)
         # X вращение
-        dpg.bind_item_theme(dpg.add_button(pos=(_x + 857 * scale, _y + 760 * scale), tag=context.axis[3]['name'] + 'bnt_p', width=w, height=h), itheme)
-        dpg.bind_item_theme(dpg.add_button(pos=(_x + 905 * scale, _y + 566 * scale), tag=context.axis[3]['name'] + 'bnt_m', width=w, height=h), itheme)
+        dpg.bind_item_theme(
+            dpg.add_button(pos=(_x + 857 * scale, _y + 760 * scale), tag=context.axis[3]['name'] + 'bnt_p', width=w,
+                           height=h), itheme)
+        dpg.bind_item_theme(
+            dpg.add_button(pos=(_x + 905 * scale, _y + 566 * scale), tag=context.axis[3]['name'] + 'bnt_m', width=w,
+                           height=h), itheme)
         # Y вращение
-        dpg.bind_item_theme(dpg.add_button(pos=(_x + 239 * scale, _y + 897 * scale), tag=context.axis[4]['name'] + 'bnt_p', width=w, height=h), itheme)
-        dpg.bind_item_theme(dpg.add_button(pos=(_x + 83 * scale, _y + 971 * scale), tag=context.axis[4]['name'] + 'bnt_m', width=w, height=h), itheme)
+        dpg.bind_item_theme(
+            dpg.add_button(pos=(_x + 239 * scale, _y + 897 * scale), tag=context.axis[4]['name'] + 'bnt_p', width=w,
+                           height=h), itheme)
+        dpg.bind_item_theme(
+            dpg.add_button(pos=(_x + 83 * scale, _y + 971 * scale), tag=context.axis[4]['name'] + 'bnt_m', width=w,
+                           height=h), itheme)
         # Z вращение
-        dpg.bind_item_theme(dpg.add_button(pos=(_x + 267 * scale, _y + 65 * scale), tag=context.axis[5]['name'] + 'bnt_p', width=w, height=h), itheme)
-        dpg.bind_item_theme(dpg.add_button(pos=(_x + 467 * scale, _y + 112 * scale), tag=context.axis[5]['name'] + 'bnt_m', width=w, height=h), itheme)
+        dpg.bind_item_theme(
+            dpg.add_button(pos=(_x + 267 * scale, _y + 65 * scale), tag=context.axis[5]['name'] + 'bnt_p', width=w,
+                           height=h), itheme)
+        dpg.bind_item_theme(
+            dpg.add_button(pos=(_x + 467 * scale, _y + 112 * scale), tag=context.axis[5]['name'] + 'bnt_m', width=w,
+                           height=h), itheme)
 
         # CAMERA
         with dpg.group(pos=(500 + _x, 50 + _y), horizontal=True):
@@ -852,14 +910,21 @@ class MotionGUI:
                 dpg.add_button(label="Y", callback=lambda: self.move_y(False))
                 dpg.add_button(label="X", callback=lambda: self.move_x(False))
             with dpg.group(horizontal=False):
-                # dpg.add_slider_int(label="", default_value=int(255 * 3.7), max_value=255 * 4, min_value=10, tag="th1",
-                #                    width=250)
-                # dpg.add_slider_int(label="", default_value=int(255 * 3.7), max_value=255 * 4, min_value=10, tag="th2",
-                #                    width=250)
-                dpg.add_image('camera_1', tag="group_123")
-                with dpg.item_handler_registry(tag="widget_handler"):
-                    dpg.add_item_clicked_handler(callback=self.click_callback)
-                dpg.bind_item_handler_registry('group_123', "widget_handler")
+                dpg.add_slider_int(label="left", default_value=int(255 * 0.5), max_value=255, min_value=1, tag="th3",
+                                   width=250)
+                dpg.add_slider_int(label="right", default_value=int(255 * 0.5), max_value=255, min_value=1, tag="th4",
+                                   width=250)
+                dpg.add_slider_int(label="", default_value=int(255 * 3.7), max_value=255 * 4, min_value=10, tag="th1",
+                                   width=250)
+                dpg.add_slider_int(label="", default_value=int(255 * 3.9), max_value=255 * 4, min_value=10, tag="th2",
+                                   width=250)
+                with dpg.plot(height=400, width=400, query=True, min_query_rects=0, max_query_rects=2, tag="plot_camera", query_color=(0,255,0,100)):
+                    dpg.add_plot_axis(dpg.mvXAxis, label='x', tag="bruh_")
+                    dpg.add_plot_axis(dpg.mvYAxis, label='y', tag="bruh_2")
+                    dpg.set_axis_limits_constraints('bruh_', 0, self.width)
+                    dpg.set_axis_limits_constraints('bruh_2', 0, self.width)
+
+                    dpg.add_image_series('camera_1', (0, 0), (self.width, self.width), parent="bruh_")
 
             with dpg.group(horizontal=False):
                 dpg.add_button(label="Z1", callback=lambda: self.move_z1(True))
@@ -871,31 +936,57 @@ class MotionGUI:
                 dpg.add_button(label="X", callback=lambda: self.move_x(True))
 
         # TABLE BUTTONS
-        dpg.add_image_button(context.axis[12]['txt_p'], pos=(750 + __x, -45 + __y), tag=context.axis[12]['name'] + 'bnt_p')
-        dpg.add_image_button(context.axis[12]['txt_m'], pos=(750 + __x, 460 + __y), tag=context.axis[12]['name'] + 'bnt_m')
+        dpg.add_image_button(context.axis[12]['txt_p'], pos=(750 + __x, -45 + __y),
+                             tag=context.axis[12]['name'] + 'bnt_p')
+        dpg.add_image_button(context.axis[12]['txt_m'], pos=(750 + __x, 550 + __y),
+                             tag=context.axis[12]['name'] + 'bnt_m')
 
         # RIGHT PLATFORM BUTTONS
         __y = 140
         _x = 1150
-        dpg.add_image('texture_xyzr', pos=(_x+w/2, _y+h/2), height=973 * scale, width=973 * scale)
+        dpg.add_image('texture_xyzr', pos=(_x + w / 2, _y + h / 2), height=973 * scale, width=973 * scale)
         # X линейное
-        dpg.bind_item_theme(dpg.add_button(pos=(792*scale + _x, 637*scale + _y), tag=context.axis[6]['name'] + 'bnt_p', width=w, height=h), itheme)
-        dpg.bind_item_theme(dpg.add_button(pos=(0 * scale + _x, 637*scale + _y), tag=context.axis[6]['name'] + 'bnt_m', width=w, height=h), itheme)
+        dpg.bind_item_theme(
+            dpg.add_button(pos=(792 * scale + _x, 637 * scale + _y), tag=context.axis[6]['name'] + 'bnt_p', width=w,
+                           height=h), itheme)
+        dpg.bind_item_theme(
+            dpg.add_button(pos=(0 * scale + _x, 637 * scale + _y), tag=context.axis[6]['name'] + 'bnt_m', width=w,
+                           height=h), itheme)
         # Y линейное
-        dpg.bind_item_theme(dpg.add_button(pos=(555*scale + _x, 555*scale + _y), tag=context.axis[7]['name'] + 'bnt_p', width=w, height=h), itheme)
-        dpg.bind_item_theme(dpg.add_button(pos=(875*scale + _x, 875*scale + _y), tag=context.axis[7]['name'] + 'bnt_m', width=w, height=h), itheme)
+        dpg.bind_item_theme(
+            dpg.add_button(pos=(555 * scale + _x, 555 * scale + _y), tag=context.axis[7]['name'] + 'bnt_p', width=w,
+                           height=h), itheme)
+        dpg.bind_item_theme(
+            dpg.add_button(pos=(875 * scale + _x, 875 * scale + _y), tag=context.axis[7]['name'] + 'bnt_m', width=w,
+                           height=h), itheme)
         # Z линейное
-        dpg.bind_item_theme(dpg.add_button(pos=(630*scale + _x, 0 * scale + _y), tag=context.axis[8]['name'] + 'bnt_p', width=w, height=h), itheme)
-        dpg.bind_item_theme(dpg.add_button(pos=(630*scale + _x, 784*scale + _y), tag=context.axis[8]['name'] + 'bnt_m', width=w, height=h), itheme)
+        dpg.bind_item_theme(
+            dpg.add_button(pos=(630 * scale + _x, 0 * scale + _y), tag=context.axis[8]['name'] + 'bnt_p', width=w,
+                           height=h), itheme)
+        dpg.bind_item_theme(
+            dpg.add_button(pos=(630 * scale + _x, 784 * scale + _y), tag=context.axis[8]['name'] + 'bnt_m', width=w,
+                           height=h), itheme)
         # X вращение
-        dpg.bind_item_theme(dpg.add_button(pos=(70*scale + _x, 563*scale + _y), tag=context.axis[9]['name'] + 'bnt_p', width=w, height=h), itheme)
-        dpg.bind_item_theme(dpg.add_button(pos=(111*scale + _x, 763*scale + _y), tag=context.axis[9]['name'] + 'bnt_m', width=w, height=h), itheme)
+        dpg.bind_item_theme(
+            dpg.add_button(pos=(70 * scale + _x, 563 * scale + _y), tag=context.axis[9]['name'] + 'bnt_p', width=w,
+                           height=h), itheme)
+        dpg.bind_item_theme(
+            dpg.add_button(pos=(111 * scale + _x, 763 * scale + _y), tag=context.axis[9]['name'] + 'bnt_m', width=w,
+                           height=h), itheme)
         # Y вращение
-        dpg.bind_item_theme(dpg.add_button(pos=(880*scale + _x, 972*scale + _y), tag=context.axis[10]['name'] + 'bnt_p', width=w, height=h), itheme)
-        dpg.bind_item_theme(dpg.add_button(pos=(735*scale + _x, 900*scale + _y), tag=context.axis[10]['name'] + 'bnt_m', width=w, height=h), itheme)
+        dpg.bind_item_theme(
+            dpg.add_button(pos=(880 * scale + _x, 972 * scale + _y), tag=context.axis[10]['name'] + 'bnt_p', width=w,
+                           height=h), itheme)
+        dpg.bind_item_theme(
+            dpg.add_button(pos=(735 * scale + _x, 900 * scale + _y), tag=context.axis[10]['name'] + 'bnt_m', width=w,
+                           height=h), itheme)
         # Z вращение
-        dpg.bind_item_theme(dpg.add_button(pos=(505*scale + _x, 115*scale + _y), tag=context.axis[11]['name'] + 'bnt_p', width=w, height=h), itheme)
-        dpg.bind_item_theme(dpg.add_button(pos=(705*scale + _x, 70*scale + _y), tag=context.axis[11]['name'] + 'bnt_m', width=w, height=h), itheme)
+        dpg.bind_item_theme(
+            dpg.add_button(pos=(505 * scale + _x, 115 * scale + _y), tag=context.axis[11]['name'] + 'bnt_p', width=w,
+                           height=h), itheme)
+        dpg.bind_item_theme(
+            dpg.add_button(pos=(705 * scale + _x, 70 * scale + _y), tag=context.axis[11]['name'] + 'bnt_m', width=w,
+                           height=h), itheme)
 
         with dpg.group(pos=(50, 800)):
             dpg.add_spacer(height=5)
@@ -1022,7 +1113,7 @@ class MotionGUI:
         pic_width, pic_height, pic_channels, pic_data = dpg.load_image("Pics//chan_pos_right.png")
         dpg.add_dynamic_texture(width=pic_width, height=pic_height, default_value=pic_data, tag="chan_pos_right")
 
-        dpg.add_raw_texture(width=400, height=400, default_value=[0.0] * 400 * 400 * 3,
+        dpg.add_raw_texture(width=self.width, height=self.width, default_value=[0.0] * self.width * self.width * 3,
                             tag="camera_1", format=dpg.mvFormat_Float_rgb)
         dpg.pop_container_stack()
 

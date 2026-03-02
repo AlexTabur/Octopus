@@ -180,6 +180,7 @@ class ConfigCtrl():
 
     def select_syncro_com(self, sender, app_data, user_data):
         param = dpg.get_value("syncronizer_com")
+        print(param)
         context.device_worker.syncroniser_ctrl.set_addr(param)
 
     def set_params_laser_golight_callback(self, sender, app_data, user_data):

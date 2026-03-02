@@ -10,15 +10,6 @@ context = Context()
 
 
 def pm1(pm_, logn, lev):
-    # pm_.send("STOP\r\n")
-    # print(pm_.get_err())
-    # pm_.set_triggeer(1, True)
-    # pm_.set_avg_time(0.2)
-    # pm_.set_meas_cnt(int(logn))
-    # pm_.set_gain(lev, True)
-    # pm_.set_work_mode(2, True)
-    # sleep(2)
-    # pm_.run_meas()
     pm_.send("STOP\r\n")
     print(pm_.get_err())
     pm_.send("TRIG 1\r\n")
@@ -225,10 +216,6 @@ class MeasureSpectrum:
                 if context.device_worker.is_pm2100_3_connected:
                     context.device_worker.pm2100_3_ctrl.set_wave_len(self.wave_len, False)
                 context.device_worker.laser_golight_ctrl.set_wave_len(self.wave_len)
-                #                time.sleep(1)
-                #                start = time.time()
-                #                end = time.time()
-                #                print("Прошло времени :", (end - start) * 10 ** 3, "ms")
                 self.ser_data_x.append(float(self.wave_len))
                 if context.device_worker.is_pm2100_1_connected:
                     for i, module in enumerate(context.pm_modules1):
@@ -276,31 +263,28 @@ class MeasureSpectrum:
 
     def exec_measure_sync(self, wave_len_start, wave_len_stop, power, wave_len_step, cut_off_lvl):
         def find_zero_arr_idx(wl):
-            # 1 округляем длину волны то требуемой точности
-            round_to = 0.05
-            wave_len = int(wl / round_to + 0.5) * round_to
-            # 2 ищем индекс значений для ближайшей к заданной длины волны
+            wave_len = wl
             for idx, zero in enumerate(context.spectrum_zero):
-                if abs(zero["wl"] - wave_len) < 0.01:
+                if abs(zero["wl"] - wave_len) < 0.004:
                     return idx
             return -1
 
+        def copy_to_chart(wl, arr_idx):
+            z_idx = find_zero_arr_idx(wl)
+            for i in range(60):
+                val = float(context.pm_values[i])
+                if z_idx == -1:
+                    zero_lvl = 0
+                else:
+                    zero_lvl = context.spectrum_zero[z_idx]['pow'][i]
+                value = val - zero_lvl
+                if cut_off_lvl > value:
+                    value = cut_off_lvl
+                self.ser_data_y[i][arr_idx] = float(value)
 
-        # zero_lvl = context.spectrum_zero[z_idx]['pow'][i]
-        #         value = val - zero_lvl
-        #         if cut_off_lvl > value:
-        #             value = cut_off_lvl
-        #         try:
-        #             self.ser_data_y[i][arr_idx] = float(value)
-        #         except:
-        #             print(i, arr_idx)
-
-        # try:
-
-        logn = int((wave_len_stop - wave_len_start) / wave_len_step)
-        print(logn)
+        logn = int((wave_len_stop - wave_len_start) / wave_len_step)+1
         self.ser_data_y = np.zeros((60, logn))
-        self.ser_data_x = np.round(np.arange(wave_len_start, wave_len_stop, wave_len_step), 2)
+        self.ser_data_x = np.round(np.arange(wave_len_start, wave_len_stop+wave_len_step, wave_len_step), 2)
         context.is_meas_in_process = True
         conn_state = context.device_worker.laser_golight_ctrl.get_beam_state()
         context.device_worker.laser_golight_ctrl.turn_beam(1)
@@ -315,12 +299,11 @@ class MeasureSpectrum:
         if context.device_worker.is_pm2100_3_connected:
             context.device_worker.pm2100_3_ctrl.startConst1(1545, 0.23, logn)
 
-        context.device_worker.laser_golight_ctrl.start_scan(int(wave_len_start * 1e3), int(wave_len_stop * 1e3), 1)
+        context.device_worker.laser_golight_ctrl.start_scan(int(wave_len_start * 1e3), int(wave_len_stop * 1e3), int(wave_len_step*1e2))
         context.gui_hlp.init_progress_bar(logn)
         ret1, ret2 = context.device_worker.pm2100_1_ctrl.get_meas_state()
         while ret1 != "1":
             ret1, ret2 = context.device_worker.pm2100_1_ctrl.get_meas_state()
-            print(ret1, ret2)
             dpg.set_value("popup_pb", int(ret2) / logn)
             sleep(0.1)
         if context.device_worker.is_pm2100_1_connected:
@@ -332,7 +315,10 @@ class MeasureSpectrum:
         if context.device_worker.is_pm2100_3_connected:
             for i in range(20):
                 self.ser_data_y[i + 40] = context.device_worker.pm2100_3_ctrl.get_meas_data(i // 4, i % 4 + 1)
-
+        for power_idx in range(logn):
+            wv = self.ser_data_x[power_idx]
+            wv_indx = find_zero_arr_idx(wv)
+            self.ser_data_y[:, power_idx] -= context.spectrum_zero[wv_indx]['pow']
         for i in range(60):
             dpg.delete_item(f"series_tag{i}")
             if context.act_chans[i]:

@@ -1,4 +1,5 @@
 import threading
+from time import sleep
 
 from core.gui_helper import *
 
@@ -102,7 +103,7 @@ class MeasureSpectrumZero:
             return
 
         context.gui_hlp.showMessage(txt.PLATFORM_MEASURING_MSG, txt.BREAK, DLG_CT_BREAK_PROC, prog_bar=True)
-        self.thread_proc = threading.Thread(target=self.exec_zero_measure, args=[], daemon=True)
+        self.thread_proc = threading.Thread(target=self.exec_zero_measure_sync, args=[], daemon=True)
         self.thread_proc.start()
 
     def select_pm(self, sender, app_data, user_data):
@@ -230,7 +231,59 @@ class MeasureSpectrumZero:
 
     def exec_zero_measure_sync(self):
         context.is_meas_in_process = True
+        context.break_proc = False
+        # context.spectrum_zero[wl_idx]['wl']
 
+        wave_len_start = 1525
+        wave_len_stop = 1565
+        wave_len_step = 0.01
+        power = 8.0
+        logn = int((wave_len_stop - wave_len_start) / wave_len_step)+1
+        self.ser_data_y = np.zeros((60, logn))
+        self.ser_data_x = np.round(np.arange(wave_len_start, wave_len_stop, wave_len_step), 2)
+        context.is_meas_in_process = True
+        conn_state = context.device_worker.laser_golight_ctrl.get_beam_state()
+        context.device_worker.laser_golight_ctrl.turn_beam(1)
+        context.device_worker.laser_golight_ctrl.set_power_dbm(power)
+
+        time.sleep(1)
+        context.break_proc = False
+        if context.device_worker.is_pm2100_1_connected:
+            context.device_worker.pm2100_1_ctrl.startConst1(1545, 0.23, logn)
+        if context.device_worker.is_pm2100_2_connected:
+            context.device_worker.pm2100_2_ctrl.startConst1(1545, 0.23, logn)
+        if context.device_worker.is_pm2100_3_connected:
+            context.device_worker.pm2100_3_ctrl.startConst1(1545, 0.23, logn)
+
+        context.device_worker.laser_golight_ctrl.start_scan(int(wave_len_start * 1e3), int(wave_len_stop * 1e3), int(wave_len_step*1e2))
+        context.gui_hlp.init_progress_bar(logn)
+        ret1, ret2 = context.device_worker.pm2100_1_ctrl.get_meas_state()
+        while ret1 != "1":
+            ret1, ret2 = context.device_worker.pm2100_1_ctrl.get_meas_state()
+            dpg.set_value("popup_pb", int(ret2) / logn)
+            sleep(0.1)
+        if self.meas_type == 0:  # ---------------------------измерение одного канала
+            val = context.device_worker.pm2100_2_ctrl.get_meas_data(self.pm_module, self.pm_chan + 1)
+            j = self.meas_chan
+            for i in range(len(val)):
+                context.spectrum_zero[i]['pow'][j] = val[i]
+        elif self.meas_type == 1:  # -------------------------измерение всех каналов
+            if context.device_worker.is_pm2100_1_connected:
+                for i in range(20):
+                    context.spectrum_zero[:]['pow'][i] = context.device_worker.pm2100_1_ctrl.get_meas_data(i // 4, i % 4 + 1)
+            if context.device_worker.is_pm2100_2_connected:
+                for i in range(20):
+                    context.spectrum_zero[:]['pow'][i + 20] = context.device_worker.pm2100_2_ctrl.get_meas_data(i // 4, i % 4 + 1)
+            if context.device_worker.is_pm2100_3_connected:
+                for i in range(20):
+                    context.spectrum_zero[:]['pow'][i + 40] = context.device_worker.pm2100_3_ctrl.get_meas_data(i // 4, i % 4 + 1)
+        else:  # -----------------------------------измерение одного канала и копирование на все
+
+            val = context.device_worker.pm2100_2_ctrl.get_meas_data(self.pm_module, self.pm_chan + 1)
+            for i in range(len(val)):
+                for j in range(60):
+                    context.spectrum_zero[i]['pow'][j] = val[i]
+        self.show_zero_chart()
         if context.break_proc is False:
             np.save(r'Config\spectrum_zero.npy', context.spectrum_zero)
         context.is_meas_in_process = False
