@@ -12,7 +12,7 @@ class PM:
         self.s.send(f'{command}\r\n'.encode())
 
     def decode(self, num):
-        return self.s.recv(num).strip().decode('utf-8')
+        return self.s.recv(num).strip().decode('ascii')
 
     def errors(self):
         self.write('ERR?')
@@ -34,10 +34,10 @@ class PM:
 
     def read_sweep(self, module, channel):
         self.write(f'LOGG? {module},{channel}')
-        response = self.s.recv(1000)
-        hashtag = response[0].decode("ASCII")
-        digits = int(response[1].decode("ASCII"))
-        num = int(response[2:2 + digits].decode("ASCII"))
+        response = self.s.recv(1024)
+        hashtag = response[0].decode("ascii")
+        digits = int(response[1].decode("ascii"))
+        num = int(response[2:2 + digits].decode("ascii"))
         print(hashtag, digits, num)
         return pd.DataFrame(struct.unpack("<" + "f" * num, response[2 + digits:2 + digits + num]),
                             columns=[f'CH{module * 4 + channel}'])

@@ -1,11 +1,8 @@
-
-import dearpygui.dearpygui as dpg
-import numpy as np
-from core.context import Context
+from core.context_ import Context
 from Chip.channel_control import Chanel_Controller
-from core.consts import *
 
 context = Context()
+
 
 class Chip_Controller:
 
@@ -25,16 +22,16 @@ class Chip_Controller:
 
     def add_channel(self, num, left):
         if left:
-            if(num >= len(self.left_channels)):
+            if num >= len(self.left_channels):
                 self.left_channels.append(Chanel_Controller(num))
-                idx = len(self.left_channels)-1
+                idx = len(self.left_channels) - 1
             else:
                 idx = num
             return idx
         else:
-            if(num >= len(self.right_channels)):
+            if num >= len(self.right_channels):
                 self.right_channels.append(Chanel_Controller(num))
-                idx = len(self.right_channels)-1
+                idx = len(self.right_channels) - 1
             else:
                 idx = num
             return idx
@@ -50,5 +47,6 @@ class Chip_Controller:
             return self.left_channels[num].measure
         else:
             return self.right_channels[num].measure
+
 
 context.chip_ctrl = Chip_Controller()

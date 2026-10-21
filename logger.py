@@ -1,15 +1,14 @@
 import dearpygui.dearpygui as dpg
-import core.texts as txt
-from core.texts import *
+
 from core.utils import *
 
-filt_items = ["COMMON", "COMMUNICATION", "WARNING", "ERROR", "CRITICAL"]
+filter_items = ["COMMON", "COMMUNICATION", "WARNING", "ERROR", "CRITICAL"]
 context = Context()
 
 
 class Logger:
 
-    def __init__(self, parent=None, w_width=1, w_heigth=1, w_x=0, w_y=1):
+    def __init__(self, parent=None, w_width=1, w_height=1, w_x=0, w_y=1):
         self.log_level = 0
         self.filter = 0xf
         self._auto_scroll = True
@@ -17,7 +16,7 @@ class Logger:
         if parent:
             self.window_id = parent
         else:
-            self.window_id = dpg.add_window(label="Log", pos=(w_x, w_y), width=w_width, height=w_heigth,
+            self.window_id = dpg.add_window(label="Log", pos=(w_x, w_y), width=w_width, height=w_height,
                                             no_close=True, no_collapse=True, autosize=True)
         self.count = 0
         self.flush_count = 1000
@@ -29,15 +28,15 @@ class Logger:
                                      callback=lambda sender: self.auto_scroll(dpg.get_value(sender)))
                 dpg.add_spacer(height=5)
                 with dpg.group():
-                    dpg.add_checkbox(label=filt_items[0], callback=self.set_filter_callback, user_data=0x01,
+                    dpg.add_checkbox(label=filter_items[0], callback=self.set_filter_callback, user_data=0x01,
                                      default_value=True)
-                    dpg.add_checkbox(label=filt_items[1], callback=self.set_filter_callback, user_data=0x02,
+                    dpg.add_checkbox(label=filter_items[1], callback=self.set_filter_callback, user_data=0x02,
                                      default_value=True)
-                    dpg.add_checkbox(label=filt_items[2], callback=self.set_filter_callback, user_data=0x04,
+                    dpg.add_checkbox(label=filter_items[2], callback=self.set_filter_callback, user_data=0x04,
                                      default_value=True)
-                    dpg.add_checkbox(label=filt_items[3], callback=self.set_filter_callback, user_data=0x08,
+                    dpg.add_checkbox(label=filter_items[3], callback=self.set_filter_callback, user_data=0x08,
                                      default_value=True)
-                    dpg.add_checkbox(label=filt_items[4], callback=self.set_filter_callback, user_data=0x10,
+                    dpg.add_checkbox(label=filter_items[4], callback=self.set_filter_callback, user_data=0x10,
                                      default_value=True)
                 dpg.add_spacer(height=5)
                 dpg.add_button(label="Clear", width=200, height=30,
@@ -46,7 +45,7 @@ class Logger:
             self.child_id = dpg.add_child_window(autosize_x=True, autosize_y=True)
             self.filter_id = dpg.add_filter_set(parent=self.child_id, )
             flt = "[TRACE]"
-            for f in filt_items:
+            for f in filter_items:
                 flt += ',[' + f + ']'
             dpg.set_value(self.filter_id, flt)
 
@@ -82,15 +81,15 @@ class Logger:
                                      callback=lambda sender: self.auto_scroll(dpg.get_value(sender)))
                 dpg.add_spacer(height=5)
                 with dpg.group():
-                    dpg.add_checkbox(label=filt_items[0], callback=self.set_filter_callback, user_data=0x01,
+                    dpg.add_checkbox(label=filter_items[0], callback=self.set_filter_callback, user_data=0x01,
                                      default_value=True)
-                    dpg.add_checkbox(label=filt_items[1], callback=self.set_filter_callback, user_data=0x02,
+                    dpg.add_checkbox(label=filter_items[1], callback=self.set_filter_callback, user_data=0x02,
                                      default_value=True)
-                    dpg.add_checkbox(label=filt_items[2], callback=self.set_filter_callback, user_data=0x04,
+                    dpg.add_checkbox(label=filter_items[2], callback=self.set_filter_callback, user_data=0x04,
                                      default_value=True)
-                    dpg.add_checkbox(label=filt_items[3], callback=self.set_filter_callback, user_data=0x08,
+                    dpg.add_checkbox(label=filter_items[3], callback=self.set_filter_callback, user_data=0x08,
                                      default_value=True)
-                    dpg.add_checkbox(label=filt_items[4], callback=self.set_filter_callback, user_data=0x10,
+                    dpg.add_checkbox(label=filter_items[4], callback=self.set_filter_callback, user_data=0x10,
                                      default_value=True)
                 dpg.add_spacer(height=5)
                 dpg.add_button(label="Clear", width=200, height=30,
@@ -99,7 +98,7 @@ class Logger:
             self.child_id = dpg.add_child_window(autosize_x=True, autosize_y=True)
             self.filter_id = dpg.add_filter_set(parent=self.child_id, )
             flt = "[TRACE]"
-            for f in filt_items:
+            for f in filter_items:
                 flt += ',[' + f + ']'
             dpg.set_value(self.filter_id, flt)
 
@@ -146,25 +145,25 @@ class Logger:
             message = "[TRACE]\t\t" + message  # COMMON
             theme = self.trace_theme
         elif level == 0x01:
-            message = f"[{filt_items[0]}]\t\t" + message  # COMMON
+            message = f"[{filter_items[0]}]\t\t" + message  # COMMON
             theme = self.warning_theme
         elif level == 0x02:
-            message = f"[{filt_items[1]}]\t\t" + message  # WARNING
+            message = f"[{filter_items[1]}]\t\t" + message  # WARNING
             theme = self.warning_theme
         elif level == 0x04:
-            message = f"[{filt_items[2]}]\t\t" + message  # WARNING
+            message = f"[{filter_items[2]}]\t\t" + message  # WARNING
             theme = self.warning_theme
         elif level == 0x08:
-            message = f"[{filt_items[3]}]\t\t" + message  # ERROR
+            message = f"[{filter_items[3]}]\t\t" + message  # ERROR
             theme = self.error_theme
         elif level == 0x10:
-            message = f"[{filt_items[4]}]\t\t" + message  # CRITICAL
+            message = f"[{filter_items[4]}]\t\t" + message  # CRITICAL
             theme = self.critical_theme
 
         new_log = dpg.add_text(message, parent=self.filter_id, filter_key=message)
         dpg.bind_item_theme(new_log, theme)
         if self._auto_scroll:
-            scroll_max = dpg.get_y_scroll_max(self.child_id)
+            dpg.get_y_scroll_max(self.child_id)
             dpg.set_y_scroll(self.child_id, -1.0)
 
     def log(self, message):
@@ -173,7 +172,7 @@ class Logger:
     def log_com(self, message):
         self._log(message, 0x01)
 
-    def log_comunication(self, message):
+    def log_communication(self, message):
         self._log(message, 0x02)
 
     def log_warning(self, message):
@@ -195,7 +194,7 @@ class Logger:
         else:
             self.filter &= ~user_data
         flt = "[TRACE]"
-        for idx, fstr in enumerate(filt_items):
+        for idx, fstr in enumerate(filter_items):
             if self.filter & (1 << idx):
                 flt += ",[" + fstr + "]"
         dpg.set_value(self.filter_id, flt)

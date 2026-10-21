@@ -1,10 +1,12 @@
-class ConnectionError(Exception):
+class ConnectionError_(Exception):
     """Base class for other exceptions"""
     pass
+
 
 class ConnectionClassNotFoundError(Exception):
     """Base class for other exceptions"""
     pass
+
 
 class DeviceNotFoundError(Exception):
     """Base class for other exceptions"""

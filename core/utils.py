@@ -1,11 +1,8 @@
 import math
 import re
 import configparser
-
 import serial.tools.list_ports
-import dearpygui.dearpygui as dpg
-from core.context import Context
-from core.consts import *
+from core.context_ import Context
 import numpy as np
 from pathlib import Path
 
@@ -29,15 +26,15 @@ def ghz_to_nm(freq):
     return 299792458 / freq
 
 
-def nm_to_ghz(wavelen):
-    return 299792458 / wavelen
+def nm_to_ghz(wavelength):
+    return 299792458 / wavelength
 
 
 def get_pm_devices():
-    return [dev_dict['instance'] for dev_dict in context.devices if dev_dict['type'] == 'power_meter']
+    return [dev_dict['instance'] for dev_dict in context.devices if dev_dict['type_'] == 'power_meter']
 
 
-def load_prameters():
+def load_parameters():
     def get_int_param(section, option, default):
         if config.has_option(section, option):
             return config.getint(section, option)
@@ -51,7 +48,7 @@ def load_prameters():
             return default
 
     config = configparser.ConfigParser()
-    config.read(r'Config\settings.ini', encoding="windows-1252")
+    config.read(r'Config\settings.ini')  # , encoding="windows-1252")
 
     context.speed_value_platform = get_int_param('CONFIGURATION', 'platforms_speed', 1000)
     context.step_value_platform = get_int_param('CONFIGURATION', 'platforms_step', 10)
@@ -62,7 +59,7 @@ def load_prameters():
 
     context.spectrum_laser_power = get_int_param('CONFIGURATION', 'spectrum_laser_power', 10)
 
-    config.read(r'Config\chip_params.ini', encoding="utf-8-sig")
+    config.read(r'Config\chip_params.ini')  # , encoding="utf-8-sig")
 
     if config.has_option('COMMON', 'chip_list'):
         context.chip_list = config.get('COMMON', 'chip_list').split(',')
@@ -70,9 +67,9 @@ def load_prameters():
         context.chip_list = ['None']
 
 
-def save_prameters():
+def save_parameters():
     config = configparser.ConfigParser()
-    config.read(r'Config\settings.ini', encoding="windows-1252")
+    config.read(r'Config\settings.ini')  # , encoding="windows-1252")
     if not config.has_section('CONFIGURATION'):
         config.add_section('CONFIGURATION')
     if not config.has_section('POSITIONING'):
@@ -83,7 +80,7 @@ def save_prameters():
     config.set('CONFIGURATION', 'table_step', str(context.step_value_table))
     config.set('CONFIGURATION', 'spectrum_report', str(context.spectrum_report_path))
 
-    with open(r'Config\settings.ini', mode='w', encoding="windows-1252") as configfile:  # save
+    with open(r'Config\settings.ini', mode='w') as configfile:  # encoding="windows-1252"  # save
         config.write(configfile)
 
 
@@ -112,7 +109,7 @@ def load_chip_params(chip_name):
             return default
 
     config = configparser.ConfigParser()
-    config.read(r'Config\chip_params.ini', encoding="utf-8-sig")
+    config.read(r'Config\chip_params.ini')  # , encoding="utf-8-sig")
 
     context.chip_chans_left = get_int_param(chip_name, 'channels_left', 16)
     context.chip_chans_right = get_int_param(chip_name, 'channels_right', 16)
@@ -125,14 +122,14 @@ def text_to_float(text):
     val = re.sub(',', '.', val)
     if val == '' or val == '.' or val == '-':
         val = '0'
-    dotctn = 0
+    dot_count = 0
     ret = ''
     for i, c in enumerate(val):
         if c == '.':
-            if dotctn:
+            if dot_count:
                 continue
             else:
-                dotctn += 1
+                dot_count += 1
         if c == '-' and i > 0:
             continue
         ret += c
@@ -160,21 +157,21 @@ def calc_aiming_window(width, height):
     while True:
         context.aim_steps += 1
         context.aim_x_speed[context.aim_steps - 1] = 150
-        if (height // 5) > 200:  # ширина зоны еще больше 200
+        if (height // 5) > 200:  
             context.aim_z_count[context.aim_steps - 1] = height // 200
             context.aim_z_step[context.aim_steps - 1] = 200
-        else:  # ширина зоны уже меньше 200
+        else:  
             context.aim_z_count[context.aim_steps - 1] = 5
             context.aim_z_step[context.aim_steps - 1] = height // 5
-        if context.aim_z_step[context.aim_steps - 1] < min_y_step:  # ширина уже меньше минимальной
+        if context.aim_z_step[context.aim_steps - 1] < min_y_step:  
             context.aim_z_step[context.aim_steps - 1] = min_y_step
-        if context.aim_steps == 1:  # если это первый шаг, то ширину по X оставляем как есть
+        if context.aim_steps == 1:  
             context.aim_y_width[context.aim_steps - 1] = width
-        else:  # на последующих шагах делаем ее равной общей ширине зоны сканирования по Y
+        else:  
             context.aim_y_width[context.aim_steps - 1] = context.aim_z_step[context.aim_steps - 1] * \
                                                          context.aim_z_count[context.aim_steps - 1]
         if context.aim_z_step[context.aim_steps - 1] <= min_y_step:
             break
-        height = context.aim_z_step[context.aim_steps - 1] * 3 // 2  # уменьшаем изначальную общую всоту зоны на 1/3
+        height = context.aim_z_step[context.aim_steps - 1] * 3 // 2  
 
     context.aim_x_speed[context.aim_steps - 1] = 100

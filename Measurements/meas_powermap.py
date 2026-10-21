@@ -1,8 +1,10 @@
 import threading
 
+from axis_ctrl import is_platforms_axis_busy
 from core.gui_helper import *
 from core.texts import *
 from core.utils import *
+from core.consts import *
 
 context = Context()
 
@@ -10,9 +12,58 @@ GO_TO_ZERO = 1
 GO_TO_MAX = 2
 
 
+def set_platform_pos(x_axis, y_axis, x, y):
+    #        context.logger.log_com("shift x -> " + str(x) + ", y -> " + str(y))
+    x = context.pmap_procedures.map_min_x + x
+    y = context.pmap_procedures.map_min_y + y
+    context.z_platform.move_to(y_axis, y)
+    context.z_platform.move_to(x_axis, x)
+    while is_platforms_axis_busy():
+        pass
+
+
+def recalc_um():
+    delta = int(dpg.get_value("pmap_delta") / Y_MKM_KOEF)
+    x_scale = int(dpg.get_value("pmap_y_width") / Y_MKM_KOEF)
+    dpg.set_value("pmap_delta", delta * Y_MKM_KOEF)
+    dpg.set_value("delta_steps", f"{delta} шагов")
+    dpg.set_value("xscale_steps", f"{x_scale} шагов")
+
+
+def set_powermap_measure_params(pm_channel, pm_channel2, y_count, x_scale, delta, chan_dist, after_measure):
+    # print(pm_channel, pm_channel2, y_count, x_scale, delta, chan_dist, after_measure)
+    context.pmap_procedures.y_count = int(y_count)
+    context.pmap_procedures.x_scale = int(x_scale)
+    context.pmap_procedures.delta = int(delta * 1000 / NM_PER_STEP_Z)
+    context.pmap_procedures.chan_dist = chan_dist
+    context.pmap_procedures.after_measure = after_measure
+
+    if ((not context.device_worker.is_pm2100_1_connected) and
+            (not context.device_worker.is_pm2100_2_connected) and
+            (not context.device_worker.is_pm2100_3_connected)):
+        context.logger.log_warning(txt.PM_NOT_CONNECTED)
+        return
+    if not context.z_platform.is_connected:
+        context.logger.log_warning(txt.PLATFORMS_NOT_CONNECTED)
+        return
+
+    if context.pmap_procedures.sync_mode and not context.device_worker.is_sync_connected:
+        context.logger.log_warning(txt.sync_NOT_CONNECTED)
+        return
+
+    context.gui_hlp.showMessage(txt.PLATFORM_AIMING_MSG, txt.BREAK, DLG_CT_BREAK_PROC, prog_bar=True)
+
+    context.pmap_procedures.pm_module = pm_channel // 4
+    context.pmap_procedures.pm_chan = pm_channel % 4
+
+    context.pmap_procedures.pm_module2 = pm_channel2 // 4
+    context.pmap_procedures.pm_chan2 = pm_channel2 % 4
+
+
 class MeasurePowerMap:
 
     def __init__(self):
+        self.meas_chart2 = None
         self.cross = 999999
         self.cross2 = 999999
 
@@ -24,113 +75,71 @@ class MeasurePowerMap:
         self.thread_proc = None
 
     def mode_sel_callback(self, sender, app_data, user_data):
+        context.pmap_procedures.is_prepared = False
+
         if dpg.get_value("pmap_mode") == PM_MODE_CHAN:
-            context.pmap_procedures.is_prepared = False
-            dpg.hide_item(self.meas_chart2)
-            dpg.hide_item("pm_pm2")
-            dpg.hide_item("pm_chan_dist")
             self.pm_mode = 0
-        else:  # PM_MODE_FAWR
-            context.pmap_procedures.is_prepared = False
-            dpg.show_item(self.meas_chart2)
+        elif dpg.get_value("pmap_mode") == PM_MODE_ROLL:
+            self.pm_mode = 1
             dpg.show_item("pm_pm2")
             dpg.show_item("pm_chan_dist")
-            self.pm_mode = 1
-
-    def platform_sel_callback(self, sender, app_data, user_data):
-        if dpg.get_value("pmap_platform") == LEFT:
-            context.pmap_procedures.platform = LEFT_CHAN
-            context.pmap_procedures.y_idx = context.z1_line_i
-            context.pmap_procedures.x_idx = context.y1_line_i
-            context.pmap_procedures.horiz_idx = context.x1_ang_i
-
-        else:  # RIGHT platform
-            context.pmap_procedures.platform = RIGHT_CHAN
-            context.pmap_procedures.y_idx = context.z2_line_i
-            context.pmap_procedures.x_idx = context.y2_line_i
-            context.pmap_procedures.horiz_idx = context.x2_ang_i
-
-        context.pmap_procedures.y_axis = int(context.axis[context.pmap_procedures.y_idx]['idx'])
-        context.pmap_procedures.x_axis = int(context.axis[context.pmap_procedures.x_idx]['idx'])
-        context.pmap_procedures.horiz_axis = int(context.axis[context.pmap_procedures.horiz_idx]['idx'])
+            dpg.show_item(self.meas_chart2)
+        else:
+            self.pm_mode = 2
 
     def plot_callback(self, sender, app_data, user_data):
         if self.pm_mode == 0:
-            if context.zplatform.is_connected:
+            if context.z_platform.is_connected:
                 x, y = dpg.get_plot_mouse_pos()
-                context.logger.log_com(
+                print(
                     f"Перемещение Y -> {x} мкм ({int(x / Y_MKM_KOEF)} шагов) , y -> {y} мкм({int(y / Z_MKM_KOEF)}шагов)")
                 context.gui_hlp.showMessage(txt.PLATFORM_AIMING_MSG, txt.BREAK, DLG_CT_NO_CLOSE)
-                self.set_platform_pos(context.pmap_procedures.x_axis, context.pmap_procedures.y_axis,
-                                      int(x / Y_MKM_KOEF), int(y / Y_MKM_KOEF))
-                context.gui_hlp.popup_close()
-        else:
+                set_platform_pos(context.pmap_procedures.x_axis, context.pmap_procedures.y_axis,
+                                 int(x / Y_MKM_KOEF), int(y / Z_MKM_KOEF))
+                popup_close()
+        elif self.pm_mode == 1:
             self.cross = context.pmap_procedures.process_horiz_aiming(self.cross, 1)
+        else:
+            if context.z_platform.is_connected:
+                x, y = dpg.get_plot_mouse_pos()
+                print(
+                    f"Перемещение Y -> {x} мкм ({int(x / STEP_PER_GRAD_Y)} шагов) , y -> {y} мкм({int(y / Z_MKM_KOEF)}шагов)")
+                context.gui_hlp.showMessage(txt.PLATFORM_AIMING_MSG, txt.BREAK, DLG_CT_NO_CLOSE)
+                set_platform_pos(context.pmap_procedures.pitch_axis, context.pmap_procedures.y_axis,
+                                 int(x / STEP_PER_GRAD_Y), int(y / Z_MKM_KOEF))
+                popup_close()
 
     def plot_callback2(self, sender, app_data, user_data):
-        #        if context.zplatform.is_connected:
-        x, y = dpg.get_plot_mouse_pos()
+        #        if context.z_platform.is_connected:
+        # x, y = dpg.get_plot_mouse_pos()
         if self.pm_mode == 1:
             self.cross2 = context.pmap_procedures.process_horiz_aiming(self.cross2, 2)
 
-    # Перемещение
-    def set_platform_pos(self, x_axis, y_axis, x, y):
-        #        context.logger.log_com("shift x -> " + str(x) + ", y -> " + str(y))
-        x = context.pmap_procedures.map_min_x + x
-        y = context.pmap_procedures.map_min_y + y
-        context.zplatform.move_to(y_axis, y)
-        context.zplatform.move_to(x_axis, x)
-        while context.zcontrollers.is_platforms_axis_busy():
-            pass
-
+    # Эта функция должна бы переключать какал измерений, правый или левый
     def measure_powermap_callback(self, sender, app_data, user_data):
-        if ((not context.device_worker.is_pm2100_1_connected) and
-                (not context.device_worker.is_pm2100_2_connected) and
-                (not context.device_worker.is_pm2100_3_connected)):
-            context.logger.log_warning(txt.PM_NOT_CONNECTED)
-            return
-        if not context.zplatform.is_connected:
-            context.logger.log_warning(txt.PLATFORMS_NOT_CONNECTED)
-            return
-
-        if context.pmap_procedures.syncro_mode and not context.device_worker.is_syncro_connected:
-            context.logger.log_warning(txt.SYNCRONIZER_NOT_CONNECTED)
-            return
-
-        context.gui_hlp.showMessage(txt.PLATFORM_AIMING_MSG, txt.BREAK, DLG_CT_BREAK_PROC, prog_bar=True)
-        # определяем параметры стыковки
-        pm_channel = dpg.get_value("pmap_meas_chanel")
-        if pm_channel.isnumeric():
-            pm_channel = int(pm_channel)
-        pm_channel2 = dpg.get_value("pmap_meas_chanel2")
-        if pm_channel2.isnumeric():
-            pm_channel2 = int(pm_channel2)
-
-        #        self.pm_dev уже содержит измеритель с которым будет производится работа
-        context.pmap_procedures.pm_module = pm_channel // 4  # вычисляем модуль
-        context.pmap_procedures.pm_chan = pm_channel % 4  # вычисляем канал
-
-        context.pmap_procedures.pm_module2 = pm_channel2 // 4  # вычисляем модуль 2
-        context.pmap_procedures.pm_chan2 = pm_channel2 % 4  # вычисляем канал 2
-
-        context.pmap_procedures.y_count = dpg.get_value("pmap_z_count")
-        context.pmap_procedures.x_scale = int(dpg.get_value("pmap_y_width") / Y_MKM_KOEF)
-        context.pmap_procedures.delta = int(dpg.get_value("pmap_delta") / Y_MKM_KOEF)
-        context.pmap_procedures.chan_dist = dpg.get_value("pmap_chans_dist")
-        context.pmap_procedures.after_measure = GO_TO_ZERO
-
+        pm_channel = int(dpg.get_value("pmap_meas_chanel"))  # Вот тут как раз
+        pm_channel2 = int(dpg.get_value("pmap_meas_chanel2"))
+        y_count = int(dpg.get_value("pmap_z_count"))
+        x_scale = float(dpg.get_value("pmap_y_width") / Y_MKM_KOEF)
+        delta = float(dpg.get_value("pmap_delta") / Y_MKM_KOEF)
+        chan_dist = float(dpg.get_value("pmap_chans_dist"))
+        after_measure = GO_TO_ZERO
+        set_powermap_measure_params(pm_channel, pm_channel2, y_count, x_scale, delta, chan_dist, after_measure)
         if self.pm_mode == 0:
-            if context.pmap_procedures.syncro_mode:
+            if context.pmap_procedures.sync_mode:
                 self.thread_proc = threading.Thread(target=context.pmap_procedures.scan_manual_sync, args=[],
                                                     daemon=True)
             else:
                 self.thread_proc = threading.Thread(target=context.pmap_procedures.scan_manual, args=[], daemon=True)
-        else:
-            if context.pmap_procedures.syncro_mode:
-                self.thread_proc = threading.Thread(target=context.pmap_procedures.correct_horizont, args=[],
-                                                    daemon=True)
+        elif self.pm_mode == 1:
+            # if context.pmap_procedures.sync_mode:
+            self.thread_proc = threading.Thread(target=context.pmap_procedures.correct_horizont_sync, args=[],
+                                                daemon=True)
 
-        #        self.thread_proc = threading.Thread(target=self.exec_measure, args=[], daemon=True)
+            #     # self.thread_proc = threading.Thread(target=self.exec_measure, args=[], daemon=True)
+            # else:
+            #     self.thread_proc = threading.Thread(target=context.pmap_procedures.correct_pitch, args=[],
+            #                                         daemon=True)
         self.thread_proc.start()
 
     def prepare(self):
@@ -142,9 +151,9 @@ class MeasurePowerMap:
             for x in range(0, context.pmap_procedures.x_scale):
                 #                context.pmap_procedures.ser_data[i][j] = 1 - ((i-25)*(j-25)/(25*25))
                 context.pmap_procedures.ser_data[x][y] = (1 - ((y - context.pmap_procedures.y_count / 2) ** 2) / (
-                            (context.pmap_procedures.y_count ** 2) / 4)) * \
+                        (context.pmap_procedures.y_count ** 2) / 4)) * \
                                                          (1 - ((x - context.pmap_procedures.x_scale / 2) ** 2) / (
-                                                                     (context.pmap_procedures.x_scale ** 2) / 4))
+                                                                 (context.pmap_procedures.x_scale ** 2) / 4))
 
         dpg.add_spacer(height=10)
         with dpg.group(horizontal=True):
@@ -169,39 +178,45 @@ class MeasurePowerMap:
                     with dpg.group():
                         dpg.add_text(default_value="Платформа")
                         dpg.add_radio_button(tag="pmap_platform", items=[LEFT, RIGHT], horizontal=True,
-                                             default_value=LEFT, callback=context.meas_powermap.platform_sel_callback)
+                                             default_value=LEFT, callback=platform_sel_callback)
                 dpg.add_spacer(height=5)
                 with dpg.group(horizontal=True):
                     with dpg.group():
                         dpg.add_text(default_value="Режим измерения")
-                        dpg.add_radio_button(tag="pmap_mode", items=[PM_MODE_CHAN, PM_MODE_FAWR], horizontal=True,
+                        dpg.add_radio_button(tag="pmap_mode", items=[PM_MODE_CHAN, PM_MODE_ROLL, PM_MODE_PITCH],
+                                             horizontal=True,
                                              default_value=LEFT, callback=self.mode_sel_callback)
                 dpg.add_spacer(height=5)
                 with dpg.group(horizontal=True):
                     with dpg.group():
                         dpg.add_text(default_value="Выбор измерителя")
                         dpg.add_combo(tag="pmap_device", items=[DEV_NOT_FOUND], default_value=DEV_NOT_FOUND,
-                                      width=200, callback=self.select_pm)
+                                      width=200, callback=select_pm)
                 dpg.add_spacer(height=5)
                 with dpg.group(horizontal=True):
                     with dpg.group():
-                        dpg.add_text(default_value="Канал измерителя")
+                        # dpg.add_text(default_value="Канал измерителя")
+                        dpg.add_text(tag="pmap_meas_power")
                         dpg.add_combo(tag="pmap_meas_chanel", items=["Нет"], default_value='Нет', width=100,
                                       callback=self.select_pm_chan)
                     with dpg.group(tag="pm_pm2", show=False):
-                        dpg.add_text(default_value="Канал измерителя 2")
+                        # dpg.add_text(default_value="Канал измерителя 2")
+                        dpg.add_text(tag="pmap_meas_power2")
                         dpg.add_combo(tag="pmap_meas_chanel2", items=["Нет"], default_value='Нет', width=100,
                                       callback=self.select_pm_chan2)
-                    dpg.add_text(tag="pmap_meas_power", default_value="")
+
+                    dpg.add_text(tag="pmap_meas_power_diff")
+                    dpg.add_text(tag="pmap_meas_power_avg")
+
                 dpg.add_spacer(height=5)
                 with dpg.group(tag="pm_chan_dist", horizontal=True, show=False):
                     with dpg.group():
                         dpg.add_text(default_value="Количество каналов между измеряемыми")
-                        dpg.add_input_int(tag="pmap_chans_dist", width=100, default_value=47,
-                                          min_value=0, max_value=200, min_clamped=True, max_clamped=True)
+                        dpg.add_input_int(tag="pmap_chans_dist", width=100, default_value=47, max_value=200,
+                                          min_value=-48,
+                                          min_clamped=True, max_clamped=True)
                 dpg.add_spacer(height=5)
-                dpg.add_checkbox(label='Измерения в синхронном режиме', callback=self.syncro_mode_callback,
-                                 default_value=True)
+                dpg.add_checkbox(label='Измерения в синхронном режиме', callback=sync_mode_callback)
                 dpg.add_spacer(height=15)
                 with dpg.group(horizontal=True):
                     with dpg.group():
@@ -216,7 +231,7 @@ class MeasurePowerMap:
                         context.editor_list.append("pmap_delta")
                         delta_um = context.pmap_procedures.delta * Z_MKM_KOEF
                         dpg.add_input_float(tag="pmap_delta", width=100, default_value=delta_um, step=Y_MKM_KOEF,
-                                            callback=self.recalc_um, min_value=0.2, max_value=100,
+                                            callback=recalc_um, min_value=0.2, max_value=100,
                                             min_clamped=True, max_clamped=True)
                         dpg.add_text(default_value=f"{context.pmap_procedures.delta} шагов", tag="delta_steps")
 
@@ -226,7 +241,7 @@ class MeasurePowerMap:
                     context.editor_list.append("pmap_y_width")
                     x_scale_um = context.pmap_procedures.x_scale * Y_MKM_KOEF
                     dpg.add_input_int(tag="pmap_y_width", width=100, default_value=x_scale_um, step=Y_MKM_KOEF,
-                                      callback=self.recalc_um, min_value=10, max_value=5000,
+                                      callback=recalc_um, min_value=10, max_value=5000,
                                       min_clamped=True, max_clamped=True)
                     dpg.add_text(default_value=f"мкм = {context.pmap_procedures.x_scale} шагов", tag="xscale_steps")
 
@@ -258,72 +273,6 @@ class MeasurePowerMap:
                     dpg.add_item_clicked_handler(button=0, callback=self.plot_callback2)
             dpg.bind_item_handler_registry(self.meas_chart2, "chart2_widget_handler")
 
-    def make_sync_dbg_start_meas(self, sender, app_data, user_data):
-        if context.device_worker.is_pm2100_1_connected:
-            context.device_worker.pm2100_1_ctrl.startConst2(1535, 0.01, 10000)
-
-    def make_sync_dbg_stop_meas(self, sender, app_data, user_data):
-        if context.device_worker.is_pm2100_1_connected:
-            context.device_worker.pm2100_1_ctrl.stop_meas()
-            context.device_worker.pm2100_1_ctrl.set_work_mode(4, False)
-
-    def make_sync_dbg_get_meas_state(self, sender, app_data, user_data):
-        if context.device_worker.is_pm2100_1_connected:
-            res1, res2, = context.device_worker.pm2100_1_ctrl.get_meas_state()
-            print("res1=", res1)
-            print("res2=", res2)
-
-    def make_sync_dbg_get_meas(self, sender, app_data, user_data):
-        if context.device_worker.is_pm2100_1_connected:
-            res = context.device_worker.pm2100_1_ctrl.get_meas_data(0, 1)
-            print("meas=", res)
-
-    def make_sync_dbg_get_err(self, sender, app_data, user_data):
-        if context.device_worker.is_pm2100_1_connected:
-            res = context.device_worker.pm2100_1_ctrl.get_err()
-            print("err=", res)
-
-    def make_sync_dbg_sync(self, sender, app_data, user_data):
-        if context.device_worker.is_syncro_connected:
-            context.device_worker.syncroniser_ctrl.make_sync(10000, 1000)
-
-    def select_pm(self, sender, app_data, user_data):
-        device = dpg.get_value('pmap_device')
-        chan_list = []
-        if device == POWER_METER_1:
-            context.pmap_procedures.pm_dev = context.device_worker.pm2100_1_ctrl
-            for i in range(0, 20):
-                if context.act_chans[i]:
-                    chan_list.append(str(i))
-        elif device == POWER_METER_2:
-            context.pmap_procedures.pm_dev = context.device_worker.pm2100_2_ctrl
-            for i in range(20, 40):
-                if context.act_chans[i]:
-                    chan_list.append(str(i - 20))
-        elif device == POWER_METER_3:
-            context.pmap_procedures.pm_dev = context.device_worker.pm2100_3_ctrl
-            for i in range(40, 60):
-                if context.act_chans[i]:
-                    chan_list.append(str(i - 40))
-        if len(chan_list) == 0:
-            context.pmap_procedures.pm_dev = None
-            chan_list = ['Нет']
-            dpg.configure_item('pmap_meas_chanel', items=chan_list)
-            dpg.configure_item('pmap_meas_chanel2', items=chan_list)
-            dpg.set_value('pmap_meas_chanel', chan_list[0])
-            dpg.set_value('pmap_meas_chanel2', chan_list[0])
-        else:
-            dpg.configure_item('pmap_meas_chanel', items=chan_list)
-            dpg.configure_item('pmap_meas_chanel2', items=chan_list)
-            dpg.set_value('pmap_meas_chanel', chan_list[0])
-            dpg.set_value('pmap_meas_chanel2', chan_list[1])
-
-    def syncro_mode_callback(self, sender, app_data, user_data):
-        if dpg.get_value(sender):
-            context.pmap_procedures.syncro_mode = True
-        else:
-            context.pmap_procedures.syncro_mode = False
-
     def select_pm_chan(self, sender, app_data, user_data):
         chan = dpg.get_value('pmap_meas_chanel')
         if not chan.isdigit():
@@ -344,19 +293,107 @@ class MeasurePowerMap:
             elif context.pmap_procedures.pm_dev == context.device_worker.pm2100_3_ctrl:
                 self.meas_chan2 += 40
 
-    def recalc_um(self):
-        delta = int(dpg.get_value("pmap_delta") / Y_MKM_KOEF)
-        x_scale = int(dpg.get_value("pmap_y_width") / Y_MKM_KOEF)
-        dpg.set_value("pmap_delta", delta * Y_MKM_KOEF)
-        dpg.set_value("delta_steps", f"{delta} шагов")
-        dpg.set_value("xscale_steps", f"{x_scale} шагов")
-
     def powermap_loop(self):
         # context.current_proc
         if dpg.get_value(context.tabBar) != TAB_POWERMAP_ID:
             return
         if self.pm_mode == 0:
             self.cross = context.pmap_procedures.process_crosshair(self.cross)
+
+
+def sync_mode_callback(sender, app_data, user_data):
+    if dpg.get_value(sender):
+        context.pmap_procedures.sync_mode = True
+    else:
+        context.pmap_procedures.sync_mode = False
+
+
+def select_pm(sender, app_data, user_data):
+    device = dpg.get_value('pmap_device')
+    chan_list = []
+    if device == POWER_METER_1:
+        context.pmap_procedures.pm_dev = context.device_worker.pm2100_1_ctrl
+        for i in range(0, 20):
+            if context.act_chans[i]:
+                chan_list.append(str(i))
+    elif device == POWER_METER_2:
+        context.pmap_procedures.pm_dev = context.device_worker.pm2100_2_ctrl
+        for i in range(20, 40):
+            if context.act_chans[i]:
+                chan_list.append(str(i - 20))
+    elif device == POWER_METER_3:
+        context.pmap_procedures.pm_dev = context.device_worker.pm2100_3_ctrl
+        for i in range(40, 60):
+            if context.act_chans[i]:
+                chan_list.append(str(i - 40))
+    if len(chan_list) == 0:
+        context.pmap_procedures.pm_dev = None
+        chan_list = ['Нет']
+        dpg.configure_item('pmap_meas_chanel', items=chan_list)
+        dpg.configure_item('pmap_meas_chanel2', items=chan_list)
+        dpg.set_value('pmap_meas_chanel', chan_list[0])
+        dpg.set_value('pmap_meas_chanel2', chan_list[0])
+    else:
+        dpg.configure_item('pmap_meas_chanel', items=chan_list)
+        dpg.configure_item('pmap_meas_chanel2', items=chan_list)
+        dpg.set_value('pmap_meas_chanel', chan_list[0])
+        dpg.set_value('pmap_meas_chanel2', chan_list[1])
+
+
+def make_sync_dbg_sync(sender, app_data, user_data):
+    if context.device_worker.is_sync_connected:
+        context.device_worker.sync_ctrl.make_sync(10000, 1000)
+
+
+def make_sync_dbg_get_err(sender, app_data, user_data):
+    if context.device_worker.is_pm2100_1_connected:
+        res = context.device_worker.pm2100_1_ctrl.get_err()
+        print("err=", res)
+
+
+def make_sync_dbg_get_meas(sender, app_data, user_data):
+    if context.device_worker.is_pm2100_1_connected:
+        res = context.device_worker.pm2100_1_ctrl.get_meas_data(0, 1)
+        print("meas=", res)
+
+
+def make_sync_dbg_get_meas_state(sender, app_data, user_data):
+    if context.device_worker.is_pm2100_1_connected:
+        res1, res2, = context.device_worker.pm2100_1_ctrl.get_meas_state()
+        print("res1=", res1)
+        print("res2=", res2)
+
+
+def make_sync_dbg_stop_meas(sender, app_data, user_data):
+    if context.device_worker.is_pm2100_1_connected:
+        context.device_worker.pm2100_1_ctrl.stop_meas()
+        context.device_worker.pm2100_1_ctrl.set_work_mode(4, False)
+
+
+def make_sync_dbg_start_meas(sender, app_data, user_data):
+    if context.device_worker.is_pm2100_1_connected:
+        context.device_worker.pm2100_1_ctrl.startConst2(1535, 0.01, 10000)
+
+
+def platform_sel_callback(sender, app_data, user_data):
+    if dpg.get_value("pmap_platform") == LEFT:
+        context.pmap_procedures.platform = LEFT_CHAN
+        context.pmap_procedures.y_idx = context.z1_line_i
+        context.pmap_procedures.x_idx = context.y1_line_i
+        context.pmap_procedures.horiz_idx = context.x1_ang_i
+        context.pmap_procedures.pitch_idx = context.y1_ang_i
+
+    else:  # RIGHT platform
+        context.pmap_procedures.platform = RIGHT_CHAN
+        context.pmap_procedures.y_idx = context.z2_line_i
+        context.pmap_procedures.x_idx = context.y2_line_i
+        context.pmap_procedures.horiz_idx = context.x2_ang_i
+        context.pmap_procedures.pitch_idx = context.y2_ang_i
+
+    context.pmap_procedures.y_axis = int(context.axis[context.pmap_procedures.y_idx]['idx'])
+    context.pmap_procedures.x_axis = int(context.axis[context.pmap_procedures.x_idx]['idx'])
+    context.pmap_procedures.horiz_axis = int(context.axis[context.pmap_procedures.horiz_idx]['idx'])
+    context.pmap_procedures.pitch_axis = int(context.axis[context.pmap_procedures.pitch_idx]['idx'])
 
 
 context.meas_powermap = MeasurePowerMap()

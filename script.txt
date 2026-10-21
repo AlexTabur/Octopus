@@ -1,0 +1,38 @@
+platforms_homing2() # ЗАНУЛЕНИЕ КООРДИНАТ ПОЗИЦИОНЕРОВ
+confirm("ПЕРЕДВИНТЕ БОКОВУЮ КАМЕРУ НА ЛЕВЫЙ КОНЕЦ ПОЛОСКИ С ЧИПАМИ")
+focus_side_view() #нахождение края стрипа
+rotate_y() # Тангаж
+context.sv_angle[0] = context.camera_angles_sv[0]
+move_z() # Z
+context.moving_right = True
+confirm("ПЕРЕДВИНТЕ БОКОВУЮ КАМЕРУ НА ПРАВЫЙ КОНЕЦ ПОЛОСКИ С ЧИПАМИ")
+focus_side_view() #нахождение края стрипа
+rotate_y() # Тангаж
+context.sv_angle[1] = context.camera_angles_sv[1]
+move_z() # Z
+move_table_to_preset(32) # Перемещаем стол
+context.moving_right = False
+confirm("ПЕРЕДВИНТЕ ВЕРХНЮЮ КАМЕРУ НА ЛЕВЫЙ КОНЕЦ ПОЛОСКИ С ЧИПАМИ")
+rotate_z() # рыскание
+move_y() # Y
+focus_on_waveguides() # фокусируемся на волноводах
+context.moving_right = True
+confirm("ПЕРЕДВИНТЕ ВЕРХНЮЮ КАМЕРУ НА ПРАВЫЙ КОНЕЦ ПОЛОСКИ С ЧИПАМИ")
+rotate_z() # рыскание
+context.strip_angle = context.camera_angles_td[0] # запоминаем угол стрипа
+move_y() # Y
+focus_on_waveguides() # фокусируемся на волноводах
+set_powermap_measure_params(7, 10, 320, 10, 3.0, 3, GO_TO_MAX) # Задаём параметры
+context.pmap_procedures.yustirovka_all(min_power = -30, target_power=-10.0, max_iterations=10, tolerance=0.01)
+set_powermap_measure_params(7, 10, 5, 10.0, 2.0, 3, GO_TO_MAX) # Задаём параметры
+context.pmap_procedures.adjustment_l_and_r(target_power=-10.0, max_iterations=10, tolerance=0.01)
+set_powermap_measure_params(7, 15, 100, 10.0, 4.0, 8, GO_TO_MAX) # Задаём параметры
+context.pmap_procedures.correct_horizont_linear() # Корректируем горизонт
+context.pmap_procedures.save_anchor()
+next_chip()
+context.moving_right = False
+confirm("ПЕРЕДВИНТЕ ВЕРХНЮЮ КАМЕРУ НА ЛЕВЫЙ КОНЕЦ СТРИПА")
+move_y()
+context.pmap_procedures.blind_move_right_side()
+set_powermap_measure_params(7, 10, 320, 8, 5.0, 3, GO_TO_MAX) # Задаём параметры
+context.pmap_procedures.yustirovka_all(min_power = -30, target_power=-10.0, max_iterations=10, tolerance=0.01)

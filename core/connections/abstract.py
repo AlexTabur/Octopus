@@ -1,5 +1,6 @@
 from abc import ABCMeta, abstractmethod
 
+
 class AbstractConnection(metaclass=ABCMeta):
 
     connected = False

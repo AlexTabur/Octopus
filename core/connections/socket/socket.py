@@ -1,6 +1,6 @@
 from socket import socket, AF_INET, SOCK_STREAM
 
-from core.exceptions import ConnectionError
+from core.exceptions import ConnectionError_
 from ..abstract import AbstractConnection
 
 
@@ -21,12 +21,12 @@ class Socket2(AbstractConnection):
     def connect(self):
         self.__ip, self.__port = self.__addr.split(':')
         if not (self.__ip and self.__port):
-            raise ConnectionError(f'ip or port not found in {self.__addr}')
+            raise ConnectionError_(f'ip or port not found in {self.__addr}')
 
         self.__sock = socket(AF_INET, SOCK_STREAM)
         self.__sock.settimeout(self.__timeout)
         res = self.__sock.connect_ex((self.__ip, int(self.__port)))
-        self.connected = res == 0  #True
+        self.connected = res == 0  # True
 
     def close(self):
         self.__sock.close()

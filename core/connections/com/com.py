@@ -1,20 +1,21 @@
 from serial import Serial
 from ..abstract import AbstractConnection
 
+
 # TODO: add log
 # TODO: add exceptions handling
 
 class Com(AbstractConnection):
     connection_type = 'com'
     dev_addr = None
-    
+
     def __init__(self, comport, timeout=1, baudrate=9600):
         self.__comport = comport
         self.__port = None
         self.__timeout = timeout
         self.__baudrate = baudrate
 
-    def set_baudrate(self, baudrate = 9600):
+    def set_baudrate(self, baudrate=9600):
         self.__baudrate = baudrate
         if self.__port:
             self.__port.baudrate = self.__baudrate
@@ -30,7 +31,8 @@ class Com(AbstractConnection):
     def close(self):
         try:
             self.__port.close()
-        except:
+        except Exception as e:
+            print(e)
             pass
         self.__port = None
         self.connected = False
@@ -44,6 +46,7 @@ class Com(AbstractConnection):
 
             return line
         except TimeoutError as e:
+            print(e)
             pass
 
     def io(self, data):
@@ -53,11 +56,13 @@ class Com(AbstractConnection):
 
             return line
         except TimeoutError as e:
+            print(e)
             pass
 
-    def read_len(self, len):
+    def read_len(self, len_):
         try:
-            line = self.__port.read(size=len)
+            line = self.__port.read(size=len_)
             return line
         except TimeoutError as e:
+            print(e)
             pass

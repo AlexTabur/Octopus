@@ -1,6 +1,6 @@
 from abc import ABCMeta, abstractmethod
-from core.context import Context
-from core.exceptions import ConnectionClassNotFoundError, ConnectionError
+
+from core.context_ import Context
 
 context = Context()
 
@@ -13,7 +13,7 @@ class AbstractDevice(metaclass=ABCMeta):
     dev_type = None
     timeout = None
     status = 'init'
-    chanels = 1
+    channels = 1
 
     def __init__(self):
         self.con_class = None
@@ -22,7 +22,7 @@ class AbstractDevice(metaclass=ABCMeta):
         self.connection_type = connection_type
 
     def set_addr(self, addr):
-        """ip address:port or com port or ip addrres for visa"""
+        """ip address:port or com port or ip address for visa"""
         self.dev_addr = addr
 
     def set_baudrate(self, baudrate):
@@ -37,13 +37,13 @@ class AbstractDevice(metaclass=ABCMeta):
         self.connection = self.con_class(self.dev_addr, self.timeout)
 
         if not self.connection:
-            return False  #raise ConnectionClassNotFoundError(self.connection_type)
+            return False  # raise ConnectionClassNotFoundError(self.connection_type)
 
         try:
             self.connection.connect()
-        except Exception:
+        except Exception as e:
             self.status = 'error'
-            context.logger.log_error(f' failed to connect to {self.dev_addr}')
+            context.logger.log_error(f' failed to connect to {self.dev_addr}, {e}')
             return False
 
         self.status = 'idle'
@@ -53,16 +53,11 @@ class AbstractDevice(metaclass=ABCMeta):
         self.connection.close()
         self.status = 'init'
 
-    #        context.logger.log_com(f'{self.dev_name} disconnected from {self.dev_addr}')
-
     def send(self, data):
-        #        context.logger.log_com(f'{self.dev_name} on {self.dev_addr}\nsent: {data}')
         self.connection.send(data)
 
     def read(self):
-        ans = self.connection.read()
-
-    #        context.logger.log_com(f'{self.dev_name} on {self.dev_addr}\nrecieved: {ans}')
+        self.connection.read()
 
     def read_len(self, length):
         ans = self.connection.read_len(length)
@@ -73,7 +68,6 @@ class AbstractDevice(metaclass=ABCMeta):
 
     def io(self, data):
         ans = self.connection.io(data)
-        #        context.logger.log_com(f'{self.dev_name} on {self.dev_addr}\nsent: {data}\nrecieved: {ans}')
         return ans
 
     def io_raw(self, data):
@@ -87,14 +81,14 @@ class AbstractDevice(metaclass=ABCMeta):
     @property
     def labels(self):
         """labels for showing line names in plots"""
-        if self.chanels > 1:
-            return [f'{self.dev_name} {i}' for i in range(self.chanels)]
+        if self.channels > 1:
+            return [f'{self.dev_name} {i}' for i in range(self.channels)]
 
         return [self.dev_name, ]
 
     @property
     def keys(self):
-        if self.chanels > 1:
-            return [f'{self.dev_name.lower()}_{i}' for i in range(self.chanels)]
+        if self.channels > 1:
+            return [f'{self.dev_name.lower()}_{i}' for i in range(self.channels)]
 
         return [self.dev_name.lower(), ]
