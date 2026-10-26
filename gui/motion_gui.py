@@ -316,7 +316,6 @@ class MotionGUI:
         self.move_mode_list = [txt.CONTINUES_MODE, txt.STEP_MODE]
         self.step_slider_id = 1
         self.speed_slider_id = 2
-        context.z_controllers = axis_ctrl.PlatformController()
         self.width_end = 0
         self.height_end = 0
         self.data_end = 0

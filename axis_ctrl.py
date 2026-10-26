@@ -374,11 +374,6 @@ def move_all_to_preset(preset):
     popup_close()
 
 
-class PlatformController:
-    def __init__(self):
-        pass
-
-
 def connect_platform():
     if not context.platform_connect_thread.is_alive():
         context.platform_connect_thread = Thread(target=context.z_platform.connect,
