@@ -7,17 +7,17 @@
 Константы для работы камеры, api поставлявшееся вместе с камерой
 ## CameraParams_header
 Заголовки для функций, объясняют какой тип данных на вход в аргументы каждой функции, какой тип данных которые возвращает функция
-## MvCameraControl_class
+## MvCameraControl_class.py
 "Обёртка" для кода, чтобы можно было вызывать функции из .dll файла в python коде
-## MvErrorDefine_const
+## MvErrorDefine_const.py
 Названия и информация для каждого кода ошибки, который может выдать камера
 # Chip
-## channel_control
+## channel_control.py
 - класс `Chanel_Controller`
   - `__init__` инициализация свойств для экземпляра класса
   - `make_aimed` Задаёт позицию для канала, помечает его как подведённый
   - `make_unaimed` Позиция для канала сбрасывается в 0, помечает канал как не готовый для измерения
-## chip_control
+## chip_control.py
 - класс `Chip_Controller`
   - `__init__` Левые каналы - пустой массив, Правые каналы - пустой массив, номера активных каналов = -1, Состояния левого и правого = 0
   - `set_active_chan` Задаёт активный канал, справа или слева в зависимости от аргумента
@@ -27,7 +27,7 @@
 # core
 ## connections
 ### com
-#### com
+#### com.py
 - класс `Com`
   - `__init__` Задание для подключения номер порта, скорость (бауд), таймаут
   - `set_baudrate` Задаёт бауд
@@ -38,7 +38,7 @@
   - `io` Отправляет, ждёт пока не придёт ответ, считывает
   - `read_len` Должен считывать определённое количество байт, НО СКОРЕЕ ВСЕГО НЕ ДЕЛАЕТ ЭТОГО, А ВЫЗЫВАЕТ ФУНКЦИЮ read
 ### socket
-#### socket
+#### socket.py
 - класс `Socket2`, наследует `AbstractConnection`
   - `__init__` адрес, таймаут, длина пакета
   - `connect` Подсоединить прибор, вычисляется ip и порт из адреса, подключен = True
@@ -49,19 +49,19 @@
   - `io` Отправляет команду в ascii, считывает ответ как байты
   - `io_raw` Отправляет команду в байтах, считывает ответ как байты
 ### visa
-#### visa
+#### visa.py
 - класс `Visa`, THORLABS измерители мощности по этому протоколу работают некоторые
   - `__init__` указание ip и тип прибора (по умолчанию TCPIP, по интернет кабелю)
   - `connect` подключить прибор
   - `close` одключить прибор
-### abstract
+### abstract.py
 - `AbstractConnection`Макет для классов подключений(`COM, Visa, Socket2`)
   - `connect`
   - `close`
   - `send`
   - `read`
   - `io`
-## consts
+## consts.py
 - Номера осей позиционеров и стола, сколько нм, мкм в шаге для каждой оси и стола, 
 сколько шагов на градус для позиционеров угла, подведён или сдвинут канал, битовая маска дляя левых и правых каналов,
 количество пикселей в мкм для обеих камер
@@ -72,7 +72,7 @@
 - Расстояние от верха FABа до волновода для правого и левого
 - угол поворота боковой камеры (если камера неправильно повёрнута, можно двигая позиционеры и отслеживая их движение по камере определить угол поворота и в машинном зрении скорректировать углы)
 - Угол поворота камеры вида сверху(аналогично)
-## context_
+## context_.py
 - `Singleton`
   - `__init__`
   - `__call__`
@@ -152,11 +152,11 @@
     - список ширин сканирования по z
     - список возможных шагов по z
     - Список возможных скоростей по х 
-## exceptions
+## exceptions.py
 класс `ConnectionError_`
 класс `ConnectionClassNotFoundError`
 класс `DeviceNotFoundError`
-## gui_helper
+## gui_helper.py
 - `show_channels_legend` строит легенду где можно выключать и включать каналы на графике. Вообще в библиотеке dearpygui есть у каждого графика эта легенда, можно включать и выключать каналы
 - `set_conn_states` при нажатии кнопки "Подключить" меняет значок в зависимости от статуса(красный, желтый, зелёный круг), меняет надпись с "подключить" на "отключить" и наоборот
 - `prepare_input_window` окно ввода названия сохранённой позиции в окне "Сохранённые позиции". Например можно задать названия "номер стрипа тип чипа" и столик будет переезжать в нужное место в зависимости от того, крайний это стрип (мало чипов один по середине)
@@ -201,9 +201,9 @@
 - `initThemes` Дизайн кнопок
 - `cancel_preset_name` Отмена, скрывается диалоговое окно ввода названия сохранённой позиции
 - `apply_preset_name` Применить имя сохранённой позиции
-## texts
+## texts.py
 Текст кнопок и окон
-## utils
+## utils.py
 - `get_comports_list`
 - `mW_to_dBm`
 - `dBm_to_mW`
@@ -227,7 +227,7 @@
 - `text_to_int`
 - `calc_aiming_window` вычисляет из размеров области скорость, шаг по z. "Измерение ИС"
 ## gui
-### config_gui
+### config_gui.py
 - `init_config_page` Создаёт вкладку "Параметры"
   - `prepare_pm` делает таблицу со значениями мощности, обновляющуюся
 - класс `ConfigCtrl`
@@ -250,7 +250,7 @@
 - `set_pm_read_online` Включение выключение автообновления таблицы мощностей измерителей мощности
 - `pm_zero_callback` Снятие нулевого спектра для каждого канала одного из измерителей 
 куча кода закомментировано
-### Motion_gui 
+### motion_gui.py 
 
 - `init_setting_page` Не используется вроде бы 
 - `script_code_click_callback` В dearpygui нет возможности узнать положние курсора в текстовом окне. Поэтому был написан этот костыль. Позиция мыши - позиция окна по y делим на высоту строки, прибавляем сдвиг, получаем номер строки.
@@ -291,8 +291,8 @@
 - `step_edit_callback` Обрабатывает текстовое поле ввода шага
 # Measurements
 ## devices
-### abstract
-### golight_tl
+### abstract.py
+### golight_tl.py
 - `checksum` вычисляет контрольную сумму, этот байт добавляется в конец команды
 - `command` превращает шестнадцатиричные команды в байты, дописывает в конце контрольную сумму
 - класс `GolightTL`
@@ -308,7 +308,7 @@
   - `store_state` сохранить состояние
   - `restore_state` восстановить состояние
 - `prep_array` та же функция, что и `command`, надо будет заменить
-### pm2100
+### pm2100.py
 ### sync
 - `sync`
   - `__init__`
@@ -322,18 +322,18 @@
   - `send_cmd` отправляем команду
   - `get_cmd` получаем ответ, первый байт команда, второй - параметр1, третий - параметр2
 ## PMapping
-### measuring
-## chip_meas
-- `input_area_width_step_callback`
-- `input_area_width_um_callback`
-- `input_area_height_step_callback`
-- `input_area_height_um_callback`
-- `set_act_chan_callback`
+### measuring.py
+## chip_meas.py
+- `input_area_width_step_callback` обрабатываем поле ввода ширины окна стыковки в шагах
+- `input_area_width_um_callback` обрабатываем поле ввода ширины окна стыковки в мкм
+- `input_area_height_step_callback` обрабатываем поле ввода высоты окна стыковки в шагах
+- `input_area_height_um_callback` обрабатываем поле ввода высоты окна стыковки в мкм
+- `set_act_chan_callback` открываем диалоговое окно 'Установить позицию напротив канала как текущую? ' и вызывает `set_act_chan_dlg`
 - класс `ChipMeasureControl`
-  - `init_chip_meas_page`
-  - `strip_move_updown`
-  - `select_pm`
-  - `select_pm_chan`
+  - `init_chip_meas_page` Создаём вкладку "Измерение ИС" 
+  - `strip_move_updown` Показываем всплывающее окно и вызываем `move_table_to_chip`
+  - `select_pm` Добавляем в список все каналы из подключенных измерителей мощности
+  - `select_pm_chan` обрабатываем полн
   - `chip_select_callback`
   - `prepare_table`
   - `set_act_chan`
@@ -346,55 +346,244 @@
 - `set_act_chan_dlg`
 - `show_aiming_res`
 - `display_aiming_details`
+## meas_ctrl.py
+- класс `DeviceWorker`
+  - `__init__`
+  - `connectGolightLaser`
+  - `connect_sync`
+  - `connectPM2100`
+  - `disconnect_sync`
+  - `disconnectGolightLaser`
+  - `disconnectPM2100`
+  - `turn_laser_golight`
+## meas_datasheet.py
+- класс `DataSheet`
+  - `__init__`
+  - `find_wl`
+  - `prepare_line_chan`
+  - `make_data_sheet`
+## meas_powermap.py
+- `set_platform_pos`
+- `recalc_um`
+- `set_powermap_measure_params`
+- класс `MeasurePowerMap`
+  - `__init__`
+  - `mode_sel_callback`
+  - `plot_callback`
+  - `plot_callback2`
+  - `measure_powermap_callback`
+  - `prepare`
+  - `select_pm_chan`
+  - `select_pm_chan2`
+  - `powermap_loop`
+- `sync_mode_callback`
+- `select_pm`
+- `make_sync_dbg_sync`
+- `make_sync_dbg_get_err`
+- `make_sync_dbg_get_meas`
+- `make_sync_dbg_get_meas_state`
+- `make_sync_dbg_stop_meas`
+- `make_sync_dbg_start_meas`
+- `platform_sel_callback`
+## meas_spectrum.py
+- `pm1`
+- `set_report_file`
+- класс `MeasureSpectrum`
+  - `__init__`
+  - `init_spectrum_page`
+  - `measure_spectrum_callback`
+  - `exec_measure`
+    - `find_zero_arr_idx`
+    - `copy_to_chart`
+  - `exec_measure_sync`
+    - `find_zero_arr_idx`
+  - `open_report_file`
+  - `save_report_file`
+- `measure_zero_spectrum_callback`
+- `rep_browse_callback`
+- `set_report_path`
+
+## meas_spectrum_zero.py
+- класс `MeasureSpectrumZero`
+  - `__init__`
+  - `prepare_spectrum_zero_page`
+  - `measure_zero_spectrum_callback`
+  - `select_pm`
+  - `select_pm_chan`
+  - `exec_zero_measure_sync`
+  - `show_zero_chart`
+
+- `legend_callback`
+- `show_spectrum_zero_page`
+
+# Motion
+## postiton.py
+- `x_pos_to_um`
+- `y_pos_to_um`
+- `z_pos_to_um`
+- `add_pos_window`
+- `Positions`
+  - `__init__`
+- `set_right_lock_callback`
+- `set_left_lock_callback`
+- `set_key_ctrl_callback`
+
+# actual_main.py
 - ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
-- ``
+
+# axis_ctrl.py
+- `platforms_homing2`
+- `move_platform_to_preset`
+- `move_platform_to_chan`
+- `move_table_to_chip`
+- `move_table_to_preset`
+- `move_all_to_preset`
+- `PlatformController`
+  - `__init__`
+- `connect_platform`
+- `connect_table`
+- `disconnect_table`
+- `disconnect_platform`
+- `move_axis`
+- `readDecValues`
+- `readAccValues`
+- `move_table`
+- `stop_cur_axis`
+- `get_axis_move_params`
+- `get_all_axis_pos`
+- `is_table_axis_busy`
+- `is_platforms_axis_busy`
+- `store_preset_pos`
+- `set_table_speed`
+- `get_all_axis_state`
+- `set_platforms_speed`
+# camera.py
+- `Camera`
+  - `__init__`
+  - `grab`
+
+# find_template.py
+- `find_template1`
+- `rotate_image`
+- `get_matrix`
+- `get_point`
+- `get_point2`
+- `get_points`
+- `find_template2`
+
+# graph.py
+- `Graph`
+  - `__init__`
+  - `setData`
+  - `updateGraph`
+  - `mouseDragEvent`
+
+
+# logger.py
+- `Logger`
+  - `__init__`
+  - `init_logger`
+  - `auto_scroll`
+  - `_log`
+  - `log`
+  - `log_com`
+  - `log_communication`
+  - `log_warning`
+  - `log_error`
+  - `log_critical`
+  - `clear_log`
+  - `set_filter_callback`
+
+# main.py
+- `main_func`
+  - `tab_menu_callback`
+
+# move_from_camera 
+- `points_to_k_b`
+- `focus_side_view`
+- `get_angles`
+- `focus_on_waveguides`
+- `get_angles2`
+- `move_table_`
+- `move_`
+- `move_x`
+- `move_y`
+- `move_z`
+- `rotate_y`
+- `rotate_z`
+- `get_axis_platforms`
+- `move_to_`
+- `next_chip`
+
+# scratch.py
+- `isHorizontal`
+- `get_k`
+- `get_b`
+- `get_y`
+- `length`
+- `angle`
+- `resize_image`
+- `display_img`
+- `Mono_numpy`
+# test_euler.py
+- `rpy_matrix`
+# work_image.py
+- `k_b_to_points`
+- `fill`
+
+- `worker_f`
+  - `update_image`
+- `get_intersect`
+- `erosion`
+- `dilatation`
+- `detect`
+- `Image_Worker`
+  - `__init__`
+  - `save_hist_state`
+  - `load_hist_state`
+  - `_initialize_array`
+  - `on_roi_size_change_start`
+  - `on_roi_size_change_end`
+  - `average_image`
+  - `save_parameters`
+  - `computer_vision`
+    - `out`
+    - `get_points`
+    - `func`
+      - `check_type`
+  - `get_waveguide_img`
+
+# zmotion.py
+
+- `search`
+- `ZMCWrapper`
+  - `__init__`
+  - `connect`
+  - `disconnect`
+  - `set_atype`
+  - `set_units`
+  - `set_accel`
+  - `set_decel`
+  - `set_max_speed`
+  - `set_speed`
+  - `set_creep`
+  - `get_atype`
+  - `get_units`
+  - `get_accel`
+  - `get_decel`
+  - `get_speed`
+  - `move`
+  - `v_move`
+  - `move_to`
+  - `stop`
+  - `platform_to_home`
+  - `get_pos`
+  - `set_pos`
+  - `is_in_motion`
+  - `get_state`
+  - `get_DatumIn`
+  - `get_FwdIn`
+  - `get_BckIn`
+  - `set_DatumIn`
+  - `set_FwdIn`
+  - `set_BckIn`
