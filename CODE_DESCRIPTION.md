@@ -334,18 +334,19 @@
   - `strip_move_updown` Показываем всплывающее окно и вызываем `move_table_to_chip`
   - `select_pm` Добавляем в список все каналы из подключенных измерителей мощности
   - `select_pm_chan` обрабатываем полн
-  - `chip_select_callback`
-  - `prepare_table`
-  - `set_act_chan`
-  - `goto_chan`
-  - `aiming_callback`
-  - `aiming`
-  - `slide_chip`
-  - `chip_loop`
-- `test_turn`
-- `set_act_chan_dlg`
-- `show_aiming_res`
-- `display_aiming_details`
+  - `chip_select_callback` обрабатываем выбор типа кристала во вкладке "Измерение ИС"
+  - `prepare_table` создаём таблицу
+  - `set_act_chan`задаём активный канал 
+  - `goto_chan` вызываем move_platform_to_chan
+  - `aiming_callback` 'Провести стыковку канала? ', вызываем aiming
+  - `aiming` вызываем context.pmap_procedures.aiming
+  - `slide_chip` не используется
+  - `chip_loop` 
+    - `process_channels` выделяем цветом подведённые/неподведенные каналы
+- `test_turn` не знаю 
+- `set_act_chan_dlg` задаём активный канал 
+- `show_aiming_res`  не знаю 
+- `display_aiming_details` вывод информации о подводе 
 ## meas_ctrl.py
 - класс `DeviceWorker`
   - `__init__`
@@ -358,10 +359,10 @@
   - `turn_laser_golight`
 ## meas_datasheet.py
 - класс `DataSheet`
-  - `__init__`
-  - `find_wl`
-  - `prepare_line_chan`
-  - `make_data_sheet`
+  - `__init__` задаем типы данных для столбцов датащита
+  - `find_wl` находим центральную длину волны
+  - `prepare_line_chan` создаем строку для канала, номер канала, центральную длину волны, минимальные потери, максимальные потери 
+  - `make_data_sheet` вычисляем остальные характеристики, записываем в файл 
 ## meas_powermap.py
 - `set_platform_pos`
 - `recalc_um`
@@ -386,22 +387,22 @@
 - `make_sync_dbg_start_meas`
 - `platform_sel_callback`
 ## meas_spectrum.py
-- `pm1`
-- `set_report_file`
+- `pm1`  отправляем команду измерителю мощности измерять с триггер-сигналом
+- `set_report_file` открываем диалоговое окно выбора названия датащита
 - класс `MeasureSpectrum`
   - `__init__`
-  - `init_spectrum_page`
-  - `measure_spectrum_callback`
-  - `exec_measure`
-    - `find_zero_arr_idx`
-    - `copy_to_chart`
-  - `exec_measure_sync`
-    - `find_zero_arr_idx`
-  - `open_report_file`
-  - `save_report_file`
-- `measure_zero_spectrum_callback`
-- `rep_browse_callback`
-- `set_report_path`
+  - `init_spectrum_page`создаем вкладку "Измерение спектра"
+  - `measure_spectrum_callback`запускаем измерение спектра, функцию exec_measure_sync
+  - `exec_measure` используется в aiming в measuring.py
+    - `find_zero_arr_idx` находим индекс в нулевом спектре, чтобы вычесть из измерений
+    - `copy_to_chart`вычитаем из измерений
+  - `exec_measure_sync` измеряем спектр с триггер-сигналом 
+    - `find_zero_arr_idx` находим индекс в нулевом спектре, чтобы вычесть из измерений
+  - `open_report_file` открываем датащит, , читаем,  рисуем графики 
+  - `save_report_file` сохраняем датащит
+- `measure_zero_spectrum_callback` открываем окно "Измерение опорного уровня мощности"
+- `rep_browse_callback` задаеем путь сохранения датащита
+- `set_report_path` сохранить путь в settings.ini файл 
 
 ## meas_spectrum_zero.py
 - класс `MeasureSpectrumZero`
@@ -418,37 +419,35 @@
 
 # Motion
 ## postiton.py
-- `x_pos_to_um`
-- `y_pos_to_um`
-- `z_pos_to_um`
-- `add_pos_window`
-- `Positions`
+- `x_pos_to_um` Переводим шаги в мкм
+- `y_pos_to_um` Переводим шаги в мкм
+- `z_pos_to_um` Переводим шаги в мкм
+- `add_pos_window` Добавляем плавающее окно с позицями позиционеров
+- `Positions` Ничего не делает
   - `__init__`
-- `set_right_lock_callback`
-- `set_left_lock_callback`
-- `set_key_ctrl_callback`
+- `set_right_lock_callback` Блокируем / разблокируем правую сторону
+- `set_left_lock_callback` Блокируем / разблокируем левую сторону
+- `set_key_ctrl_callback` Задаём `ctrl_by_keyboard`, можно управлять позиционерами с клавиатуры или нет
 
 # actual_main.py
 - ``
 
 # axis_ctrl.py
 - `platforms_homing2`
-- `move_platform_to_preset`
-- `move_platform_to_chan`
-- `move_table_to_chip`
-- `move_table_to_preset`
-- `move_all_to_preset`
-- `PlatformController`
-  - `__init__`
-- `connect_platform`
-- `connect_table`
-- `disconnect_table`
-- `disconnect_platform`
-- `move_axis`
-- `readDecValues`
-- `readAccValues`
-- `move_table`
-- `stop_cur_axis`
+- `move_platform_to_preset` передвигаем позиционер на сохранённую позицию
+- `move_platform_to_chan` Рассчитываем разницу по y, отъезжаем на 2000 по X, двигаемся позиционером по Y на dy, подъезжаем на 2000 по X
+- `move_table_to_chip` отъезжаем на 2000 по X обеими позиционерами, двигаемся столиком по Y на dy, подъезжаем обеими позиционерами на 2000 по X
+- `move_table_to_preset` передвигаем стол на сохранённую позицию
+- `move_all_to_preset` Передвигаем стол, не отъезжая позиционерами, переезжаем позиционерами одновременно
+- `connect_platform` Вызываем функцию `context.z_platform.connect`, передавая ip контроллера позиционеров
+- `connect_table` Вызываем функцию `context.z_table.connect`, передавая ip контроллера стола
+- `disconnect_table` Отключаем стол
+- `disconnect_platform` Отключаем позиционеры
+- `move_axis` Передвигаем позиционер. Если шаговый режим сдвигаем на шаг, указанный во вкладке "Ручное управление", если непрерывный непрерывно перемещаем, пока оператор не отпустит кнопку, тогда команда stop
+- `readDecValues` Считываем значения замедления, записываем в объект `context.axis`
+- `readAccValues` Считываем значения ускорения, записываем в объект `context.axis`
+- `move_table` `context.current_axis = AXIS_TABLE + 14`, непонятно почему. Передвигаем стол. Если шаговый режим сдвигаем на шаг, указанный во вкладке "Ручное управление", если непрерывный непрерывно перемещаем, пока оператор не отпустит кнопку, тогда команда stop
+- `stop_cur_axis` 
 - `get_axis_move_params`
 - `get_all_axis_pos`
 - `is_table_axis_busy`
