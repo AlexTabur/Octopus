@@ -223,6 +223,8 @@ def get_line():
     else:
         ret = ""
     # print("To return", ret, type(ret))
+
+
     a = ret.split("#")
     if len(a) < 2:
         a.append("Действие")
@@ -262,14 +264,21 @@ def btn_run_callback(sender, app_data, user_data):
     a, msg = get_line()
     # text = "действие"
     # context.gui_hlp.showMessage(text, txt.BREAK, DLG_CT_BREAK_PROC)
-    context.gui_hlp.showMessage(msg, txt.BREAK, DLG_CT_BREAK_PROC)
 
-    def func():
+    if a.find("confirm(") > -1:
         exec(a)
-        popup_close()
+    else:
+        context.gui_hlp.showMessage(msg, txt.BREAK, DLG_CT_BREAK_PROC)
 
-    thread_proc = threading.Thread(target=func, args=[], daemon=True)
-    thread_proc.start()
+        def func():
+            exec(a)
+            popup_close()
+
+        thread_proc = threading.Thread(target=func, args=[], daemon=True)
+        func()
+        sleep(5)
+
+    # thread_proc.start()
     if context.line_count > context.line_n + 1:
         context.line_n += 1
     set_line()
