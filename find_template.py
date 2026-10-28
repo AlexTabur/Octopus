@@ -87,28 +87,20 @@ def get_points(image, angle, arr):
 
 def find_template2(img, angle, right):
     safety_offset = 50*PIX_PER_UM
+    step = 127 * PIX_PER_UM
+    res_ = rotate_image(img, angle)
+    name = f'{path}template right.bmp' if right else f'{path}template left.bmp'
+    template_img = cv2.imread(name)
+    t_wh = template_img.shape[1], template_img.shape[0]
     if right:
-        res_ = rotate_image(img, angle)
-        template_img = cv2.imread(f'{path}template right.bmp')
-        t_wh = template_img.shape[1], template_img.shape[0]
-        res_, tl = find_template1(res_, template_img, t_wh)
-        offset = [83+safety_offset, 11]
-        step = 127 * PIX_PER_UM
-        x = []
-        for i in range(16):
-            x.append([tl[0] + t_wh[0] + offset[0], tl[1] + offset[1] + i * step])
-        res2_ = get_points(img, -angle, x)
+        offset = [200+safety_offset, 590]
     else:
-        res_ = rotate_image(img, angle)
-        template_img = cv2.imread(f'{path}template left.bmp')
-        t_wh = template_img.shape[1], template_img.shape[0]
-        res_, tl = find_template1(res_, template_img, t_wh)
         offset = [-40-safety_offset, 11]
-        step = 127 * PIX_PER_UM
-        x = []
-        for i in range(16):
-            x.append([tl[0] + offset[0], tl[1] + offset[1] + i * step])
-        res2_ = get_points(img, -angle, x)
+    res_, tl = find_template1(res_, template_img, t_wh)
+    x = []
+    for i in range(16):
+        x.append([tl[0] + offset[0], tl[1] + offset[1] + i * step])
+    res2_ = get_points(img, -angle, x)
     return res_, res2_
 
 
