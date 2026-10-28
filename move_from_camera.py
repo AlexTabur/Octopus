@@ -49,21 +49,6 @@ def get_angles():
     context.camera_angles_td[0], context.camera_angles_td[1] = get_angles2(td)
 
 
-def focus_on_waveguides():
-    # 89.4
-    if context.moving_right:
-        dz = TOP_TO_WAVEGUIDE_UM_SIDEWAYS_R * np.sin(np.deg2rad(context.sv_angle[1]))
-    else:
-        dz = TOP_TO_WAVEGUIDE_UM_SIDEWAYS_L * np.sin(np.deg2rad(context.sv_angle[0]))
-        # 40 вниз
-    move_(2, dz)
-    if context.moving_right:
-        context.pos_Focus_r = get_axis_platforms(True)
-    else:
-        context.pos_Focus_l = get_axis_platforms(False)
-    print(context.pos_Focus_r)
-
-
 def get_angles2(pos):
     k, b, a0 = points_to_k_b((pos[0], pos[1]), (pos[2], pos[3]))
     k, b, a1 = points_to_k_b((pos[4], pos[5]), (pos[6], pos[7]))
@@ -87,14 +72,6 @@ def move_(axis, d):
         context.logger.log_warning(str(axis) + " " + str(dir))
 
 
-def move_x():
-    n = 4
-    x1, y1 = context.camera_points_sv[n * 2], context.camera_points_sv[n * 2 + 1]
-    x2, y2 = context.camera_points_sv[(n + 1) * 2], context.camera_points_sv[(n + 1) * 2 + 1]
-    dx = (x2 - x1) - 100
-    move_(0, dx / PIX_PER_UM)
-
-
 def move_y():
     uchet = 20
     # 1) A = в move_y() запоминаем абсолютное положение фавов. Готово
@@ -109,8 +86,8 @@ def move_y():
         context.A_r = get_axis_platforms(True)
         print("A_r", context.A_r)
         # --END --
-        move_(0, dx / PIX_PER_UM - uchet)
         move_(1, -dy / PIX_PER_UM)
+        move_(0, dx / PIX_PER_UM - uchet)
         move_(1, -10)
         # move_(1, -100)  # Переезжаем на 40 мкм
     else:
@@ -119,8 +96,8 @@ def move_y():
         context.A_l = get_axis_platforms(False)
         print("A_l", context.A_l)
         # --END--
-        move_(0, dx / PIX_PER_UM - 0)   # uchet)
         move_(1, dy / PIX_PER_UM)
+        move_(0, dx / PIX_PER_UM - 0)  # uchet)
         move_(1, -40)
         # move_(1, 50)  # Переезжаем на 40 мкм
         if hasattr(context, "anchor_l_z"):
@@ -201,16 +178,6 @@ def get_axis_platforms(right):
         a.append(context.z_platform.get_pos(i + offset))
 
     return a
-
-
-def move_to_(right, vec):
-    offset = 0
-    if right:
-        offset = 6
-    for i in range(6):
-        context.z_platform.move_to(i + offset, vec[i])
-    while is_platforms_axis_busy():
-        pass
 
 
 def next_chip(up=True):
