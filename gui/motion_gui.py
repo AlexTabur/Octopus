@@ -275,8 +275,8 @@ def btn_run_callback(sender, app_data, user_data):
             popup_close()
 
         thread_proc = threading.Thread(target=func, args=[], daemon=True)
-        func()
-        sleep(5)
+        thread_proc.start()
+
 
     # thread_proc.start()
     if context.line_count > context.line_n + 1:
