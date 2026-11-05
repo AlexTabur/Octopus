@@ -34,33 +34,30 @@ def get_pm_devices():
     return [dev_dict['instance'] for dev_dict in context.devices if dev_dict['type_'] == 'power_meter']
 
 
+def get_int_param(config, section, option, default):
+    if config.has_option(section, option):
+        return config.getint(section, option)
+    else:
+        return default
+
+
+def get_str_param(config, section, option, default):
+    if config.has_option(section, option):
+        return config.get(section, option)
+    else:
+        return default
+
+
 def load_parameters():
-    def get_int_param(section, option, default):
-        if config.has_option(section, option):
-            return config.getint(section, option)
-        else:
-            return default
-
-    def get_str_param(section, option, default):
-        if config.has_option(section, option):
-            return config.get(section, option)
-        else:
-            return default
-
     config = configparser.ConfigParser()
     config.read(r'Config\settings.ini')  # , encoding="windows-1252")
-
-    context.speed_value_platform = get_int_param('CONFIGURATION', 'platforms_speed', 1000)
-    context.step_value_platform = get_int_param('CONFIGURATION', 'platforms_step', 10)
-    context.speed_value_table = get_int_param('CONFIGURATION', 'table_speed', 1000)
-    context.step_value_table = get_int_param('CONFIGURATION', 'table_step', 10)
-
-    context.spectrum_report_path = get_str_param('CONFIGURATION', 'spectrum_report', "report.csv")
-
-    context.spectrum_laser_power = get_int_param('CONFIGURATION', 'spectrum_laser_power', 10)
-
+    context.speed_value_platform = get_int_param(config, 'CONFIGURATION', 'platforms_speed', 1000)
+    context.step_value_platform = get_int_param(config, 'CONFIGURATION', 'platforms_step', 10)
+    context.speed_value_table = get_int_param(config, 'CONFIGURATION', 'table_speed', 1000)
+    context.step_value_table = get_int_param(config, 'CONFIGURATION', 'table_step', 10)
+    context.spectrum_report_path = get_str_param(config, 'CONFIGURATION', 'spectrum_report', "report.csv")
+    context.spectrum_laser_power = get_int_param(config, 'CONFIGURATION', 'spectrum_laser_power', 10)
     config.read(r'Config\chip_params.ini')  # , encoding="utf-8-sig")
-
     if config.has_option('COMMON', 'chip_list'):
         context.chip_list = config.get('COMMON', 'chip_list').split(',')
     else:
@@ -102,19 +99,13 @@ def load_presets():
 
 
 def load_chip_params(chip_name):
-    def get_int_param(section, option, default):
-        if config.has_option(section, option):
-            return config.getint(section, option)
-        else:
-            return default
-
     config = configparser.ConfigParser()
     config.read(r'Config\chip_params.ini')  # , encoding="utf-8-sig")
 
-    context.chip_chans_left = get_int_param(chip_name, 'channels_left', 16)
-    context.chip_chans_right = get_int_param(chip_name, 'channels_right', 16)
-    context.chip_chans_dy = get_int_param(chip_name, 'channels_dy', 127)
-    context.chips_dy = get_int_param(chip_name, 'chips_dy', 20000)
+    context.chip_chans_left = get_int_param(config, chip_name, 'channels_left', 16)
+    context.chip_chans_right = get_int_param(config, chip_name, 'channels_right', 16)
+    context.chip_chans_dy = get_int_param(config, chip_name, 'channels_dy', 127)
+    context.chips_dy = get_int_param(config, chip_name, 'chips_dy', 20000)
 
 
 def text_to_float(text):
@@ -157,21 +148,21 @@ def calc_aiming_window(width, height):
     while True:
         context.aim_steps += 1
         context.aim_x_speed[context.aim_steps - 1] = 150
-        if (height // 5) > 200:  
+        if (height // 5) > 200:
             context.aim_z_count[context.aim_steps - 1] = height // 200
             context.aim_z_step[context.aim_steps - 1] = 200
-        else:  
+        else:
             context.aim_z_count[context.aim_steps - 1] = 5
             context.aim_z_step[context.aim_steps - 1] = height // 5
-        if context.aim_z_step[context.aim_steps - 1] < min_y_step:  
+        if context.aim_z_step[context.aim_steps - 1] < min_y_step:
             context.aim_z_step[context.aim_steps - 1] = min_y_step
-        if context.aim_steps == 1:  
+        if context.aim_steps == 1:
             context.aim_y_width[context.aim_steps - 1] = width
-        else:  
+        else:
             context.aim_y_width[context.aim_steps - 1] = context.aim_z_step[context.aim_steps - 1] * \
                                                          context.aim_z_count[context.aim_steps - 1]
         if context.aim_z_step[context.aim_steps - 1] <= min_y_step:
             break
-        height = context.aim_z_step[context.aim_steps - 1] * 3 // 2  
+        height = context.aim_z_step[context.aim_steps - 1] * 3 // 2
 
     context.aim_x_speed[context.aim_steps - 1] = 100
