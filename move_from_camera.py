@@ -87,8 +87,8 @@ def move_y():
         print("A_r", context.A_r)
         # --END --
         move_(1, -dy / PIX_PER_UM)
-        move_(0, dx / PIX_PER_UM - uchet)
-        move_(1, -10)
+        move_(0, dx / PIX_PER_UM)
+        # move_(1, -10)
         # move_(1, -100)  # Переезжаем на 40 мкм
     else:
         # for next_chip() --START--
@@ -197,3 +197,17 @@ def next_chip(up=True):
     dist = dist_1 / UM_PER_STEP_TABLE
     context.pmap_procedures.wait_for_hardware()
     context.z_table.move(1, dist)
+
+
+def focus_on_waveguides():
+    # 89.4
+    if context.moving_right:
+        dz = TOP_TO_WAVEGUIDE_UM_SIDEWAYS_R * np.sin(np.deg2rad(context.sv_angle[1]))
+    else:
+        dz = TOP_TO_WAVEGUIDE_UM_SIDEWAYS_L * np.sin(np.deg2rad(context.sv_angle[0]))
+        # 40 вниз
+    move_(2, dz)
+    if context.moving_right:
+        context.pos_Focus_r = get_axis_platforms(True)
+    else:
+        context.pos_Focus_l = get_axis_platforms(False)
