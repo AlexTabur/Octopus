@@ -97,8 +97,8 @@ def move_y():
         print("A_l", context.A_l)
         # --END--
         move_(1, dy / PIX_PER_UM)
-        move_(0, dx / PIX_PER_UM - 0)  # uchet)
-        move_(1, -40)
+        move_(0, dx / PIX_PER_UM)
+        # move_(1, -40)
         # move_(1, 50)  # Переезжаем на 40 мкм
         if hasattr(context, "anchor_l_z"):
             context.z_platform.move_to(1, context.anchor_l_z)
@@ -186,10 +186,10 @@ def next_chip(up=True):
     context.B_l = get_axis_platforms(False)
     context.B_r = get_axis_platforms(True)
     i = 2
-    context.z_platform.move_to(i, context.A_r[i])
-    context.z_platform.move_to(i + 6, context.A_l[i])
+    context.z_platform.move_to(2, context.A_l[i])
+    context.z_platform.move_to(8, context.A_r[i])
     i = 1
-    context.z_platform.move_to(i, context.A_l[i])
+    context.z_platform.move_to(1, context.A_l[i])
     ugol = np.deg2rad(context.strip_angle - table_angle)
     dist_1 = chip_length * np.cos(ugol)
     if up:
