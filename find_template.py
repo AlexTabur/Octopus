@@ -93,7 +93,7 @@ def find_template2(img, angle, right):
     template_img = cv2.imread(name)
     t_wh = template_img.shape[1], template_img.shape[0]
     if right:
-        offset = [200+safety_offset, 590]
+        offset = [200+safety_offset, 11]  # [200+safety_offset, 116]
     else:
         offset = [-40-safety_offset, 11]
     res_, tl = find_template1(res_, template_img, t_wh)
