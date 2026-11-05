@@ -50,10 +50,6 @@ class Context(metaclass=Singleton):
         self.editor_list = []
         self.delta_y_r = None
         self.delta_x_r = None
-        self.delta_y_l = None
-        self.delta_z_l = None
-        self.pos_Focus_r = None
-        self.pos_Focus_l = None
         self.B_l = None
         self.B_r = None
 

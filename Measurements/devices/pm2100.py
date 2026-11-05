@@ -316,7 +316,7 @@ class PM2100(AbstractDevice):
             ans = self.io(f'STAT?\r\n')
             self.status = 'ready'
             ans = ans.decode().strip().split(',')
-            print(ans)
+            #print(ans)
             return ans
         except Exception as e:
             print(e)

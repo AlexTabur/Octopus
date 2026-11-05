@@ -442,7 +442,6 @@ class PMapMeasureProcedures:
             while is_platforms_axis_busy() and (not context.break_proc):
                 pass
         except Exception as e:
-            print("354")
             print(e)
         finally:
             self.restore()
@@ -1282,8 +1281,6 @@ class PMapMeasureProcedures:
         context.delta_y_r = context.B_r[1] - context.pos_Focus_r[1]
         context.delta_z_r = context.B_r[2] - context.pos_Focus_r[2]
 
-        context.delta_y_l = context.B_l[1] - context.pos_Focus_l[1]
-        context.delta_z_l = context.B_l[2] - context.pos_Focus_l[2]
 
     def scan_manual_2(self):
         self.map_side = self.platform
