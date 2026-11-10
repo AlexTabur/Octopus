@@ -1278,8 +1278,8 @@ class PMapMeasureProcedures:
         print(context.B_r)
         print(context.B_l)
 
-        context.delta_y_r = context.B_r[1] - context.pos_Focus_r[1]
-        context.delta_z_r = context.B_r[2] - context.pos_Focus_r[2]
+        # context.delta_y_r = context.B_r[1] - context.pos_Focus_r[1]
+        # context.delta_z_r = context.B_r[2] - context.pos_Focus_r[2]
 
 
     def scan_manual_2(self):
