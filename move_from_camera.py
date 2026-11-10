@@ -73,7 +73,6 @@ def move_(axis, d):
 
 
 def move_y():
-    uchet = 20
     # 1) A = в move_y() запоминаем абсолютное положение фавов. Готово
     # 2) C = в move_y() запоминаем x, y стрипа 8 канал. Готово
     x1, y1 = context.camera_points_td[4 * 2], context.camera_points_td[4 * 2 + 1]
@@ -175,7 +174,7 @@ def get_axis_platforms(right):
     if right:
         offset = 6
     for i in range(6):
-        a.append(context.z_platform.get_pos(i + offset))
+        a.append(context.z_platform.get_pos(context.axis[i + offset]['idx']))
 
     return a
 
@@ -185,11 +184,10 @@ def next_chip(up=True):
     table_angle = 89.4712502
     context.B_l = get_axis_platforms(False)
     context.B_r = get_axis_platforms(True)
-    i = 2
-    context.z_platform.move_to(2, context.A_l[i])
-    context.z_platform.move_to(8, context.A_r[i])
-    i = 1
-    context.z_platform.move_to(1, context.A_l[i])
+    context.z_platform.move_to(context.axis[0][2], context.A_l[0])  # x left
+    context.z_platform.move_to(context.axis[1][2], context.A_l[1])  # y left
+    context.z_platform.move_to(context.axis[2][2], context.A_l[2])  # z left
+    context.z_platform.move_to(context.axis[0+6][2], context.A_r[0])  # x right
     ugol = np.deg2rad(context.strip_angle - table_angle)
     dist_1 = chip_length * np.cos(ugol)
     if up:
@@ -200,14 +198,8 @@ def next_chip(up=True):
 
 
 def focus_on_waveguides():
-    # 89.4
     if context.moving_right:
         dz = TOP_TO_WAVEGUIDE_UM_SIDEWAYS_R * np.sin(np.deg2rad(context.sv_angle[1]))
     else:
         dz = TOP_TO_WAVEGUIDE_UM_SIDEWAYS_L * np.sin(np.deg2rad(context.sv_angle[0]))
-        # 40 вниз
     move_(2, dz)
-    if context.moving_right:
-        context.pos_Focus_r = get_axis_platforms(True)
-    else:
-        context.pos_Focus_l = get_axis_platforms(False)
