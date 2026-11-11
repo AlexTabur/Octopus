@@ -22,7 +22,7 @@ rotate_z() # рыскание
 context.strip_angle = context.camera_angles_td[0] # запоминаем угол стрипа
 move_y() # Y
 focus_on_waveguides() # фокусируемся на волноводах
-set_powermap_measure_params(7, 10, 320, 10, 3.0, 3, GO_TO_MAX) # Задаём параметры
+set_powermap_measure_params(7, 10, 60, 60, 3.0, 3, GO_TO_MAX) # Задаём параметры
 context.pmap_procedures.yustirovka_all(min_power = -30, target_power=-10.0, max_iterations=10, tolerance=0.01)
 context.pmap_procedures.adjustment_l_and_r(target_power=-10.0, max_iterations=10, tolerance=0.01)
 context.pmap_procedures.correct_horizont_linear() # Корректируем горизонт
@@ -32,5 +32,3 @@ context.moving_right = False
 confirm("ПЕРЕДВИНТЕ ВЕРХНЮЮ КАМЕРУ НА ЛЕВЫЙ КОНЕЦ СТРИПА")
 move_y()
 context.pmap_procedures.blind_move_right_side()
-set_powermap_measure_params(7, 10, 320, 8, 5.0, 3, GO_TO_MAX) # Задаём параметры
-context.pmap_procedures.yustirovka_all(min_power = -30, target_power=-10.0, max_iterations=10, tolerance=0.01)

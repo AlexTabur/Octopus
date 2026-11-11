@@ -439,7 +439,7 @@ def readAccValues():
 
 
 def move_table(dir_):
-    context.current_axis = AXIS_TABLE + 14
+    context.current_axis = 12
     if context.z_table.is_connected:
         if context.ctrl_mode == CTRL_MODE_CONT:
             context.z_table.v_move(AXIS_TABLE, dir_)
