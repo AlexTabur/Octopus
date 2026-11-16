@@ -451,6 +451,7 @@ class Image_Worker:
             if (self.name_ == "topdown left" and not self.moving_right_) or (
                     self.name_ == "topdown right" and self.moving_right_):
                 if not np.isnan(x1) and not np.isnan(x2):
+
                     if self.name_ == "topdown right" and self.moving_right_:  # Правый фав
                         k, b, angle2 = points_to_k_b(self.g.data['pos'][2], self.g.data['pos'][3])
                         x = (x1 + x2) / 2
@@ -458,16 +459,15 @@ class Image_Worker:
                         chan_num = 8
                         chan_offset = (24 - chan_num)
                         x += -(np.sin(np.deg2rad(angle2 + 90)) * 127 * chan_offset) * PIX_PER_UM
-                        y += (np.cos(np.deg2rad(angle2 + 90)) * 127 * chan_offset + 30 - 180) * PIX_PER_UM  # 100 на себя 30 вверх
+                        y += (np.cos(np.deg2rad(angle2 + 90)) * 127 * chan_offset - 150) * PIX_PER_UM
                         # 20 вниз 30 вверх
                     if self.name_ == "topdown left" and not self.moving_right_:  # Левый фав
                         k, b, angle2 = points_to_k_b(self.g.data['pos'][0], self.g.data['pos'][1])
                         x = (x1 + x2) / 2
                         y = (y1 + y2) / 2
-                        chan_num = 23
-                        chan_offset = (24 - chan_num)
+                        chan_offset = 0
                         x += -(np.sin(np.deg2rad(angle2 + 90)) * 127 * chan_offset) * PIX_PER_UM
-                        y += (np.cos(np.deg2rad(angle2 + 90)) * 127 * chan_offset + 20 + 90) * PIX_PER_UM    # 90 от себя
+                        y += (np.cos(np.deg2rad(angle2 + 90)) * 127 * chan_offset) * PIX_PER_UM
                     cv2.circle(croi, (int(x - self.x1), int(y - self.y1)), 6, (0, 255, 0), 2)
                     self.g.data['pos'][self.num + 4] = [x, y]
         if (self.name_ == "topdown right" and not self.moving_right_) or (
