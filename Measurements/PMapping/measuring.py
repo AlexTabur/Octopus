@@ -470,8 +470,7 @@ class PMapMeasureProcedures:
 
             res = True
             for i in range(aim_steps):
-                res = context.spectrum_gui.exec_measure(aim_y_count[i], aim_y_step[i], aim_x_width[i], device, module,
-                                                        meas_chan, GO_TO_MAX, scan_x_speed[i])
+                res = False  # context.spectrum_gui.exec_measure(aim_y_count[i], aim_y_step[i], aim_x_width[i], device, module, meas_chan, GO_TO_MAX, scan_x_speed[i])
 
                 if context.break_proc:
                     context.logger.log(txt.PROCESS_IS_BRAKED)
@@ -1773,7 +1772,7 @@ class PMapMeasureProcedures:
                 context.device_worker.laser_broadband_ctrl.turn_beam(True)
                 sleep(5)
                 self.broadband_active = True
-        if context.device_worker.pm2100_2_ctrl.status != 'ready' or context.device_worker.pm2100_2_ctrl.state != 1:
+        if not context.device_worker.is_pm2100_1_connected:
             context.device_worker.pm2100_2_ctrl.connect()
 
     def turn_broadband_off(self):
