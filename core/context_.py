@@ -155,10 +155,6 @@ class Context(metaclass=Singleton):
         self.z_platform = zmotion.ZMCWrapper()
         self.z_table = zmotion.ZMCWrapper()
 
-        self.call_count = -1
-        self.call_function = None
-        self.function_params = None
-
         self.spectrum_laser_power = 9.5
 
         self.comports = None
@@ -186,3 +182,6 @@ class Context(metaclass=Singleton):
         self.aim_z_count = [5, 5, 10, 5, 5]
         self.aim_z_step = [100, 30, 2, 2, 1]
         self.aim_x_speed = [120, 120, 120, 120, 100]
+
+        self.device_worker = None
+

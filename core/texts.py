@@ -21,6 +21,7 @@ BTN_DISCONNECT = 'Отключить'
 TABLE_CTRL_TITLE = " Контроллер стола    "
 PLATFORM_CTRL_TITLE = " Контроллер платформ "
 LASER_GOLIGHT_TITLE = " Источник Golight "
+LASER_BROADBAND_TITLE = "Широкополосный источник"
 METER_TITLE = " Измеритель PM2100 "
 METER_IP_TITLE = " IP адрес PM2100 "
 sync_TITLE = " Синхронизатор "

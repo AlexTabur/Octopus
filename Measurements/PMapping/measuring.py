@@ -23,6 +23,7 @@ class PMapMeasureProcedures:
         self.last_max_y_coord = None
         self.last_max_x_coord = None
         self.last_max_power = None
+        self.broadband_active = False
         self.x_idx = context.y2_line_i
         self.y_idx = context.z2_line_i
         self.y_axis = int(context.axis[self.y_idx]['idx'])
@@ -87,6 +88,7 @@ class PMapMeasureProcedures:
         self.x_speed = 0
         self.x_acc = 0
         self.x_dec = 0
+
 
     @staticmethod
     def save_anchor():
@@ -813,7 +815,7 @@ class PMapMeasureProcedures:
                         break
 
             end = perf_counter()
-            context.logger.log(f"Время выравнивания крена: {round(end-start, 3)} с")
+            context.logger.log(f"Время выравнивания крена: {round(end - start, 3)} с")
 
             if context.break_proc:
                 return
@@ -1210,15 +1212,7 @@ class PMapMeasureProcedures:
     # Новая функция, она будет юстировать и вход и выход, пока не достигнет прописанного значения (по идее)
 
     def adjustment_l_and_r(self, target_power=-30.0, max_iterations=5, tolerance=0.01):
-        confirm_msg("ВКЛЮЧИТЕ ШИРИК", self.start_adjustment_l_and_r_thread, [target_power, max_iterations, tolerance])
-
-    def start_adjustment_l_and_r_thread(self, target_power, max_iterations, tolerance):
-        threading.Thread(
-            target=self.adjustment_l_and_r_logic,
-            args=(target_power, max_iterations, tolerance),
-            daemon=True).start()
-
-    def adjustment_l_and_r_logic(self, target_power, max_iterations, tolerance):
+        self.turn_broadband_on()
         context.logger.log("--- Запуск автоматической юстировки (право - лево)---")
 
         self.after_measure = GO_TO_MAX
@@ -1375,6 +1369,7 @@ class PMapMeasureProcedures:
             popup_close()
 
     def scan_manual_3(self):
+        self.turn_broadband_on()
         self.map_side = self.platform
         context.is_meas_in_process = True
         res = False
@@ -1466,13 +1461,7 @@ class PMapMeasureProcedures:
             popup_close()
 
     def adjustment_all(self):
-        confirm_msg("ВКЛЮЧИТЕ ШИРИК", self.start_adjustment_all_thread, [])
-
-    def start_adjustment_all_thread(self):
-        threading.Thread(target=self.adjustment_all_logic, daemon=True).start()
-
-    def adjustment_all_logic(self):
-
+        self.turn_broadband_on()
         context.logger.log("--- Запуск 4D-юстировки ---")
         context.is_meas_in_process = True
 
@@ -1538,73 +1527,8 @@ class PMapMeasureProcedures:
         finally:
             context.is_meas_in_process = False
 
-    """def adjustment_all_logic(self):
-        context.logger.log("--- Запуск 4D-юстировки ---")
-        context.is_meas_in_process = True
-
-        x_steps = context.pmap_procedures.x_scale
-        z_steps_count = context.pmap_procedures.y_count
-        delta = context.pmap_procedures.delta
-
-        y_steps_count = 2 * round(x_steps / (2 * delta)) + 1
-
-        if y_steps_count < 1:
-            y_steps_count = 1
-
-        global_max_power = -9999.0
-        best_config = {}
-
-        self.after_measure = GO_TO_ZERO
-
-        try:
-            self.platform = RIGHT_CHAN
-            self.y_idx = context.z2_line_i
-            self.x_idx = context.y2_line_i
-            self.y_axis = int(context.axis[self.y_idx]['idx'])
-            self.x_axis = int(context.axis[self.x_idx]['idx'])
-
-            start_y = context.z_platform.get_pos(int(context.axis[context.y1_line_i]['idx']))
-            start_z = context.z_platform.get_pos(int(context.axis[context.z1_line_i]['idx']))
-            total_iter = y_steps_count * z_steps_count
-            for i_y in range(y_steps_count):
-                for i_z in range(z_steps_count):
-
-                    target_y = start_y + (i_y - y_steps_count // 2) * delta
-                    target_z = start_z + (i_z - z_steps_count // 2) * delta
-
-                    context.z_platform.move_to(int(context.axis[context.y1_line_i]['idx']), target_y)
-                    context.z_platform.move_to(int(context.axis[context.z1_line_i]['idx']), target_z)
-
-                    while is_platforms_axis_busy() and not context.break_proc:
-                        pass
-                    if context.break_proc:
-                        return
-
-                    self.scan_manual_2()
-                    context.logger.log(f"номер итерации из {total_iter} : {i_y * z_steps_count + i_z}")
-
-                    current_power = self.last_max_power
-
-                    if current_power > global_max_power:
-                        global_max_power = current_power
-                        best_config = {
-                            'y1': target_y,
-                            'z1': target_z,
-                            'y2': self.last_max_x_coord,
-                            'z2': self.last_max_y_coord
-                        }
-
-            if best_config:
-                context.logger.log(f"Юстировка успешно завершена. Максимум мощности: {global_max_power:.4f}")
-                context.z_platform.move_to(int(context.axis[context.y1_line_i]['idx']), best_config['y1'])
-                context.z_platform.move_to(int(context.axis[context.z1_line_i]['idx']), best_config['z1'])
-                context.z_platform.move_to(int(context.axis[context.y2_line_i]['idx']), best_config['y2'])
-                context.z_platform.move_to(int(context.axis[context.z2_line_i]['idx']), best_config['z2'])
-
-        finally:
-            context.is_meas_in_process = False"""
-
-    def adjustment_all_logic_2(self, min_power):
+    def adjustment_all_2(self, min_power):
+        self.turn_broadband_on()
         context.logger.log("--- Запуск 4D-юстировки ---")
         context.is_meas_in_process = True
 
@@ -1684,20 +1608,14 @@ class PMapMeasureProcedures:
         finally:
             while is_platforms_axis_busy() and not context.break_proc: pass
             context.is_meas_in_process = False
+            return False
 
     def yustirovka_all(self, min_power, target_power, max_iterations, tolerance):
-        confirm_msg("ВКЛЮЧИТЕ ШИРИК", self.yustirovka_alll_thread, [min_power, target_power, max_iterations, tolerance])
-
-    def yustirovka_alll_thread(self, min_power, target_power, max_iterations, tolerance):
-        threading.Thread(target=self.yustirovka_all_logic, args=(min_power, target_power, max_iterations, tolerance),
-                         daemon=True).start()
-
-    def yustirovka_all_logic(self, min_power, target_power, max_iterations, tolerance):
-
+        self.turn_broadband_on()
         context.logger.log("Super Yustirovka")
         context.logger.log("Сканирование малой зоны")
 
-        success = self.adjustment_all_logic_2(min_power)
+        success = self.adjustment_all_2(min_power)
 
         if context.break_proc: return
 
@@ -1705,7 +1623,7 @@ class PMapMeasureProcedures:
             context.logger.log("Сигнал не найден. Расширение зоны")
             self.y_count = 720
             self.x_scale = 6
-            success = self.adjustment_all_logic_2(min_power)
+            success = self.adjustment_all_2(min_power)
 
         if context.break_proc: return
 
@@ -1714,7 +1632,7 @@ class PMapMeasureProcedures:
             self.x_scale = 10
             self.y_count = 5
             self.delta = int(2 * 1000 / NM_PER_STEP_Z)
-            self.adjustment_l_and_r_logic(target_power, max_iterations, tolerance)
+            self.adjustment_l_and_r(target_power, max_iterations, tolerance)
 
             if context.break_proc: return
 
@@ -1724,9 +1642,10 @@ class PMapMeasureProcedures:
             if context.break_proc: return
 
             context.logger.log("Крен скорректирован. Финальная юстирока.")
-            self.adjustment_l_and_r_logic(target_power, max_iterations, tolerance)
+            self.adjustment_l_and_r(target_power, max_iterations, tolerance)
 
             context.logger.log("Цикл юстироки завершён")
+            self.turn_broadband_off()
 
         else:
             context.logger.log("Сигнал не найден даже в расширенной зоне")
@@ -1841,72 +1760,28 @@ class PMapMeasureProcedures:
             context.logger.log("Сигнал не обнаружен. Возврат в исходные позиции.")
             return False
 
-    '''def go_strip(self, total_chips):
-
-        context.logger.log(f"Запуск автоматического сканирования стрипа. Всего чипов: {total_chips}")
-
-        axes_to_save = [
-            self.y_axis,
-
-        ]
-
-        context.logger.log("Сохранение правильных координат Входа и Выхода...")
-
-        array_b_in = {}
-        array_b_out = {}
-        for axis in axes_to_save:
-            array_b_in[axis] = context.z_platform.get_pos(axis)
-
-        x_retract_steps = 15000
-
-        current_x_in = context.z_platform.get_pos(self.x_axis)
-        array_a_in_x = current_x_in - x_retract_steps
-
-        for chip_idx in range(total_chips):
-            context.logger.log(f"=== ОБРАБОТКА ЧИПА {chip_idx + 1} из {total_chips} ===")
-
-            if chip_idx > 0:
-
-                context.logger.log("Безопасный отвод позиционеров по оси X...")
-                context.z_platform.move_to(self.x_axis, int(array_a_in_x))
-                self.wait_for_hardware()
-
-                context.logger.log("Перемещение стола к следующему чипу...")
-                self.next_chip()
-                self.wait_for_hardware()
-
-                context.logger.log("Поиск каналов через машинное зрение...")
-
-                context.logger.log("Сближение с чипом по оси X...")
-                context.z_platform.move_to(self.x_axis, int(current_x_in - 2000))
-                self.wait_for_hardware()
-
-                context.logger.log("Восстановление эталонных углов и высот (Массив B)...")
-                for axis, saved_pos in array_b_in.items():
-                    context.z_platform.move_to(axis, int(saved_pos))
-                self.wait_for_hardware()
-
-                context.logger.log("Запуск точного сканирования и поиска максимума...")
-                res_adj = self.adjustment_l_and_r()
-
-                if not res_adj:
-                    context.logger.log("Предупреждение: Не удалось поймать оптимум на этом шаге!")
-                    if context.break_proc:
-                        return
-
-            context.logger.log(f"Юстировка чипа {chip_idx + 1} завершена. Снятие показаний...")
-            self.measure_chip_data()  # Твоя функция измерения
-
-            if context.break_proc:
-                context.logger.log("Процесс сканирования стрипа прерван пользователем.")
-                return
-
-        context.logger.log("Стрип успешно отсканирован! Все данные собраны.")'''
-
     @staticmethod
     def wait_for_hardware():
         while is_platforms_axis_busy() and (not context.break_proc):
             pass
+
+    def turn_broadband_on(self):
+        # context.device_worker.laser_broadband_ctrl.turn_beam(True)
+        # sleep(5)
+
+        if not self.broadband_active:
+            state = context.device_worker.laser_broadband_ctrl.get_beam_state()
+            print(state)
+            if state == 0:
+                context.device_worker.laser_broadband_ctrl.turn_beam(True)
+                sleep(5)
+                self.broadband_active = True
+        if context.device_worker.pm2100_2_ctrl.status != 'ready' or context.device_worker.pm2100_2_ctrl.state != 1:
+            context.device_worker.pm2100_2_ctrl.connect()
+
+    def turn_broadband_off(self):
+        context.device_worker.laser_broadband_ctrl.turn_beam(False)
+        self.broadband_active = False
 
 
 context.pmap_procedures = PMapMeasureProcedures()

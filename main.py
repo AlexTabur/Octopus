@@ -16,7 +16,7 @@ from core.consts import *
 import core.texts as txt
 from gui.motion_gui import btn_connect_platform_callback, connect_platform, btn_connect_table_callback, loop_motion_gui
 from gui.config_gui import connect_pm2100_device2, connect_pm2100_device1, connect_pm2100_device3, \
-    connect_sync_device, connect_laser_golight_device, init_config_page
+    connect_sync_device, connect_laser_golight_device, connect_laser_broadband_device, init_config_page
 
 
 def main_func(td, sv, pos_array, focus_side_view_r, focus_side_view_l, moving_right_shared):
@@ -151,6 +151,14 @@ def main_func(td, sv, pos_array, focus_side_view_r, focus_side_view_l, moving_ri
                 with dpg.table_cell():
                     dpg.add_button(label=txt.BTN_CONNECT, tag="laser_golight_conn_btn", user_data=0,
                                    callback=connect_laser_golight_device, height=25, width=100)
+
+                with dpg.table_cell():
+                    dpg.add_text(default_value=txt.LASER_BROADBAND_TITLE)
+                with dpg.table_cell():
+                    dpg.add_image("texture_dev_disc", tag="laser_broadband_ctrl_state")
+                with dpg.table_cell():
+                    dpg.add_button(label=txt.BTN_CONNECT, tag="laser_broadband_conn_btn", user_data=0,
+                                   callback=connect_laser_broadband_device, height=25, width=100)
 
                 with dpg.table_cell():
                     dpg.add_text(default_value=txt.sync_TITLE)

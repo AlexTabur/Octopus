@@ -131,6 +131,16 @@ class ConfigCtrl:
             else:
                 set_conn_states("laser_golight_ctrl_state", "laser_golight_conn_btn", 0)
                 context.device_worker.is_laser_golight_connected = False
+
+        if context.device_worker.laser_broadband_ctrl.state & 1:
+            context.device_worker.laser_broadband_ctrl.state &= 0xFE
+            if context.device_worker.laser_broadband_ctrl.status == 'ready':
+                set_conn_states("laser_broadband_ctrl_state", "laser_broadband_conn_btn", 1)
+                context.device_worker.is_laser_broadband_connected = True
+                context.logger.log_com("Источник подключен")
+            else:
+                set_conn_states("laser_broadband_ctrl_state", "laser_broadband_conn_btn", 0)
+                context.device_worker.is_laser_broadband_connected = False
                 
         if context.device_worker.pm2100_1_ctrl.state & 1: 
             context.device_worker.pm2100_1_ctrl.state &= 0xFE
@@ -387,6 +397,12 @@ def connect_laser_golight_device(sender, app_data, user_data):
         context.device_worker.connectGolightLaser()
     elif user_data == 1:
         context.device_worker.disconnectGolightLaser()
+
+def connect_laser_broadband_device(sender, app_data, user_data):
+    if user_data == 0:
+        context.device_worker.connectBroadbandLaser()
+    elif user_data == 1:
+        context.device_worker.disconnectBroadbandLaser()
 
 
 def init_comports():
