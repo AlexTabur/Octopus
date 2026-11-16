@@ -23,6 +23,7 @@ class PM2100(AbstractDevice):
         self.baudrate = None
         self.connection_type = 'socket'
         self.con_class = Socket2
+        self.status = 'init'
         self.state = 0
         self.module_num = module_num
 
