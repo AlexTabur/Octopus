@@ -56,8 +56,8 @@ class AbstractDevice(metaclass=ABCMeta):
     def send(self, data):
         self.connection.send(data)
 
-    def read(self):
-        self.connection.read()
+    def read(self, len_):
+        return self.connection.read(len_)
 
     def read_len(self, length):
         ans = self.connection.read_len(length)

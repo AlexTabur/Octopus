@@ -52,7 +52,8 @@ class Com(AbstractConnection):
     def io(self, data):
         self.__port.write(data)
         try:
-            line = self.__port.read(size=4)
+            # line = self.__port.read(size=4)
+            line = self.__port.readline()
 
             return line
         except TimeoutError as e:
@@ -61,7 +62,7 @@ class Com(AbstractConnection):
 
     def read_len(self, len_):
         try:
-            line = self.__port.read(size=len_)
+            line = self.__port.read(len_)
             return line
         except TimeoutError as e:
             print(e)
