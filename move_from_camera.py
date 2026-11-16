@@ -116,9 +116,9 @@ def move_z():
     move_(1, -9608)
 
 
-def rotate_y(poputka=3, num_samples=20, delay_between_samples=0.2):
+def rotate_y(max_iterations=3, num_samples=20, delay_between_samples=0.2):
     context.logger.log("тангаж")
-    for i in range(poputka):
+    for i in range(max_iterations):
         dx_values = []
         for _ in range(num_samples):
             dx_raw = context.camera_angles_sv[1] - context.camera_angles_sv[0]
@@ -137,27 +137,6 @@ def rotate_y(poputka=3, num_samples=20, delay_between_samples=0.2):
             time.sleep(0.05)
 
         time.sleep(1.2)
-
-
-"""def rotate_y(poputka=8, pogreshnost=0.02):
-    for i in range(poputka):
-
-        dx = context.camera_angles_sv[1] - context.camera_angles_sv[0]
-        if abs(dx) <= pogreshnost:
-            break
-
-        if context.moving_right:
-            move_(4, dx)
-        else:
-            move_(4, dx)
-
-        while is_platforms_axis_busy():
-            time.sleep(0.05)
-
-        time.sleep(1.2)
-
-    else:
-        print("Максимально одинаковый угол достигнут")"""
 
 
 def rotate_z():
