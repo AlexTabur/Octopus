@@ -738,7 +738,6 @@ class PMapMeasureProcedures:
             context.is_meas_in_process = False
             popup_close()
 
-    # Эта функция корректирует крен без синхронизатора, ну, по крайней мере должна
     def correct_horizont_manual(self):
         self.horiz1_y = -1
         self.horiz2_y = -1
@@ -1209,8 +1208,6 @@ class PMapMeasureProcedures:
         context.z_platform.move(self.horiz_axis, int(angle * STEP_PER_GRAD_X))
         context.logger.log_com(f"Поворот вокруг оси X на {angle} градусов")
 
-    # Новая функция, она будет юстировать и вход и выход, пока не достигнет прописанного значения (по идее)
-
     def adjustment_l_and_r(self, target_power=-30.0, max_iterations=5, tolerance=0.01):
         self.turn_broadband_on()
         context.logger.log("--- Запуск автоматической юстировки (право - лево)---")
@@ -1275,8 +1272,8 @@ class PMapMeasureProcedures:
         # context.delta_y_r = context.B_r[1] - context.pos_Focus_r[1]
         # context.delta_z_r = context.B_r[2] - context.pos_Focus_r[2]
 
-
     def scan_manual_2(self):
+        self.turn_broadband_on()
         self.map_side = self.platform
         context.is_meas_in_process = True
         res = False

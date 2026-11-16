@@ -14,6 +14,7 @@ class DeviceWorker:
     def __init__(self):
         self.is_laser_golight_connected = False
         self.is_laser_broadband_connected = False
+
         self.is_pm2100_1_connected = False
         self.is_pm2100_2_connected = False
         self.is_pm2100_3_connected = False
@@ -42,6 +43,15 @@ class DeviceWorker:
                 self.laserGolight_connect_thread = Thread(target=self.laser_golight_ctrl.init, args=[], daemon=True)
                 self.laserGolight_connect_thread.start()
     def connectBroadbandLaser(self):
+        if (not self.laserBroadband_connect_thread.is_alive()) and (not self.is_laser_broadband_connected):
+            # self.laser_golight_ctrl.set_timeout(2)
+            # param = f"COM{dpg.get_value("laser_broadband_com")}"
+            # self.laser_broadband_ctrl.set_addr(param)
+            if self.laser_broadband_ctrl.connect():
+                set_conn_states("laser_broadband_ctrl_state", "laser_broadband_conn_btn", 2)
+                self.laserBroadband_connect_thread = Thread(target=self.laser_broadband_ctrl.init, args=[], daemon=True)
+                self.laserBroadband_connect_thread.start()
+
 
     def connect_sync(self):
         if (not self.sync_connect_thread.is_alive()) and (not self.is_sync_connected):
@@ -110,6 +120,11 @@ class DeviceWorker:
                 set_conn_states("pm2100_ctrl_state3", "pm2100_conn_btn3", 0)
 
     def disconnectBroadbandLaser(self):
+        if self.is_laser_broadband_connected:
+            self.laser_broadband_ctrl.close()
+            self.is_laser_broadband_connected = False
+            set_conn_states("laser_broadband_ctrl_state", "laser_broadband_conn_btn", 0)
+
     def turn_laser_golight(self, on):
         return self.laser_golight_ctrl.turn_beam(on)
 
