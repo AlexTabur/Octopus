@@ -80,47 +80,70 @@ def check_bounds(sender, app_data, user_data):
     check_edit_data(sender, user_data[0], user_data[1], user_data[2])
 
 
-def confirm_msg(message, function, args):
-    dpg.push_container_stack("main_window")
-    viewport_width = dpg.get_viewport_client_width()
-    viewport_height = dpg.get_viewport_client_height()
-    with dpg.window(label="", modal=True, no_close=True) as modal_id:
+_confirm_state = {
+    "modal_id": None,
+    "ok_button": None,
+    "cancel_button": None,
+}
+
+
+def _selection_callback(sender, app_data, user_data):
+    modal_id, confirmed, function, args = user_data
+    dpg.configure_item(modal_id, show=False)
+    if confirmed and function is not None:
+        function(*args)
+
+
+def init_confirm_msg(parent="main_window"):
+    dpg.push_container_stack(parent)
+    with dpg.window(label="", modal=True, no_close=True, show=False) as modal_id:
         dpg.add_spacer(height=10)
-        dpg.add_text(message, wrap=250)
+        text_id = dpg.add_text(wrap=250, tag="confirm_msg_text")
         dpg.add_spacer(height=10)
         with dpg.group(horizontal=True):
-            dpg.add_button(label="Ок", width=75, user_data=(modal_id, True, function, args),
-                           callback=selection_callback)
-            dpg.add_button(label="Отмена", width=75, user_data=(modal_id, False), callback=selection_callback)
+            ok_button = dpg.add_button(
+                label="Ок", width=75,
+                user_data=(modal_id, True, None, None),
+                callback=_selection_callback,
+            )
+            cancel_button = dpg.add_button(
+                label="Отмена", width=75,
+                user_data=(modal_id, False, None, None),
+                callback=_selection_callback,
+            )
     dpg.pop_container_stack()
+    _confirm_state["modal_id"] = modal_id
+    _confirm_state["ok_button"] = ok_button
+    _confirm_state["cancel_button"] = cancel_button
+
+
+def confirm_msg(message, function, args):
+    modal_id = _confirm_state["modal_id"]
+    ok_button = _confirm_state["ok_button"]
+    cancel_button = _confirm_state["cancel_button"]
+
+    if modal_id is None:
+        init_confirm_msg()
+        modal_id = _confirm_state["modal_id"]
+        ok_button = _confirm_state["ok_button"]
+        cancel_button = _confirm_state["cancel_button"]
+
+    dpg.set_value("confirm_msg_text", message)
+
+    dpg.configure_item(ok_button, user_data=(modal_id, True, function, args))
+    dpg.configure_item(cancel_button, user_data=(modal_id, False, None, None))
+
     width = dpg.get_item_width(modal_id)
     height = dpg.get_item_height(modal_id)
-    dpg.set_item_pos(modal_id, [viewport_width / 2 - width / 2, viewport_height / 2 - height / 2])
-
-
-def confirm2(sender, app_data, user_data):
-    context.confirm_state = user_data[1]
-    with dpg.mutex():
-        dpg.configure_item(user_data[0], show=False)
-        dpg.delete_item(user_data[0])
+    viewport_width = dpg.get_viewport_client_width()
+    viewport_height = dpg.get_viewport_client_height()
+    dpg.set_item_pos(modal_id, [viewport_width / 2 - width / 2,
+                                viewport_height / 2 - height / 2])
+    dpg.configure_item(modal_id, show=True)
 
 
 def confirm(message):
-    context.confirm_state = 0
-    dpg.push_container_stack("main_window")
-    viewport_width = dpg.get_viewport_client_width()
-    viewport_height = dpg.get_viewport_client_height()
-    with dpg.window(label="", modal=True, no_close=True) as modal_id:
-        dpg.add_spacer(height=10)
-        dpg.add_text(message, wrap=250)
-        dpg.add_spacer(height=10)
-        with dpg.group(horizontal=True):
-            dpg.add_button(label="Ок", width=75, user_data=(modal_id, 1), callback=confirm2)
-            dpg.add_button(label="Отмена", width=75, user_data=(modal_id, 2), callback=confirm2)
-    dpg.pop_container_stack()
-    width = dpg.get_item_width(modal_id)
-    height = dpg.get_item_height(modal_id)
-    dpg.set_item_pos(modal_id, [viewport_width / 2 - width / 2, viewport_height / 2 - height / 2])
+    confirm_msg(message, print, message)
 
 
 class GUI_Helper:
@@ -352,17 +375,6 @@ def check_edit_data(sender, type_, upper_bound, lower_bound):
 
     dpg.set_value(sender, val)
     return val
-
-
-def selection_callback(sender, app_data, user_data):
-    # delete window
-    with dpg.mutex():
-        dpg.configure_item(user_data[0], show=False)
-        dpg.delete_item(user_data[0])
-    if user_data[1]:
-        context.call_count = 2
-        context.call_function = user_data[2]
-        context.function_params = user_data[3]  # (*user_data[3])
 
 
 def plot_h_callback1():
