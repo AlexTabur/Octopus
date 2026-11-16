@@ -20,6 +20,7 @@ from gui.config_gui import connect_pm2100_device2, connect_pm2100_device1, conne
 
 
 def main_func(td, sv, pos_array, focus_side_view_r, focus_side_view_l, moving_right_shared):
+    dpg.create_context()
     context.camera_points_td = td
     context.camera_points_sv = sv
     context.pos_array = pos_array
@@ -43,7 +44,7 @@ def main_func(td, sv, pos_array, focus_side_view_r, focus_side_view_l, moving_ri
     76867
     '''
 
-    dpg.create_context()
+
     dpg.configure_app(manual_callback_management=True)  # Now, мы устанавливаем, что мы вручную будем обрабатывать нажатие кнопок,
     # то-есть делаем безопасную очередь выполняемых задач, чтобы ставить действие с кнопки в своеобразную очередь
 
@@ -207,19 +208,25 @@ def main_func(td, sv, pos_array, focus_side_view_r, focus_side_view_l, moving_ri
     dpg.maximize_viewport()
     dpg.set_primary_window("main_window", True)
 
-    # Этот цикл можно заменить на встроенную функцию библиотеки
+    # while dpg.is_dearpygui_running():
+    #     loop_motion_gui()
+    #     context.config_ctrl.loop()
+    #     context.chip_meas_ctrl.chip_loop()
+    #     context.meas_powermap.powermap_loop()
+    #     if context.call_count != -1:
+    #         context.call_count -= 1
+    #         if context.call_count == 0:
+    #             context.call_count = -1
+    #             context.call_function(*context.function_params)
+    #     jobs = dpg.get_callback_queue()
+    #     dpg.run_callbacks(jobs)
+    #     dpg.render_dearpygui_frame()
+
     while dpg.is_dearpygui_running():
         loop_motion_gui()
         context.config_ctrl.loop()
         context.chip_meas_ctrl.chip_loop()
         context.meas_powermap.powermap_loop()
-        # Есть вероятность, что из-за цикла будет зависать картинка
-        if context.call_count != -1:
-            context.call_count -= 1
-            if context.call_count == 0:
-                context.call_count = -1
-                context.call_function(*context.function_params)
-
         jobs = dpg.get_callback_queue()
         dpg.run_callbacks(jobs)
         dpg.render_dearpygui_frame()
