@@ -47,7 +47,7 @@ RIGHT = 'Правая'
 
 PM_MODE_CHAN = 'Карта'
 PM_MODE_ROLL = 'Выравнивание горизонта'
-PM_MODE_PITCH = 'Тангаж и Z'
+# PM_MODE_PITCH = 'Тангаж и Z'
 
 AXIS = "Ось"
 POSITION = "Позиция"

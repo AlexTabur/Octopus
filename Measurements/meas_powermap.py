@@ -183,7 +183,7 @@ class MeasurePowerMap:
                 with dpg.group(horizontal=True):
                     with dpg.group():
                         dpg.add_text(default_value="Режим измерения")
-                        dpg.add_radio_button(tag="pmap_mode", items=[PM_MODE_CHAN, PM_MODE_ROLL, PM_MODE_PITCH],
+                        dpg.add_radio_button(tag="pmap_mode", items=[PM_MODE_CHAN, PM_MODE_ROLL], #PM_MODE_PITCH
                                              horizontal=True,
                                              default_value=LEFT, callback=self.mode_sel_callback)
                 dpg.add_spacer(height=5)
