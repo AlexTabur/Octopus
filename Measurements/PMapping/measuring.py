@@ -1750,18 +1750,15 @@ class PMapMeasureProcedures:
             pass
 
     def turn_broadband_on(self):
-        # context.device_worker.laser_broadband_ctrl.turn_beam(True)
-        # sleep(5)
-
         if not self.broadband_active:
             state = context.device_worker.laser_broadband_ctrl.get_beam_state()
-            print(state)
             if state == 0:
                 context.device_worker.laser_broadband_ctrl.turn_beam(True)
                 sleep(5)
-                self.broadband_active = True
-        if not context.device_worker.is_pm2100_1_connected:
-            context.device_worker.pm2100_2_ctrl.connect()
+            self.broadband_active = True
+        if not context.device_worker.is_pm2100_2_connected:
+            context.device_worker.connectPM2100(2)
+            sleep(5)
 
     def turn_broadband_off(self):
         context.device_worker.laser_broadband_ctrl.turn_beam(False)
