@@ -15,8 +15,7 @@ from core.context_ import Context
 from core.consts import *
 import core.texts as txt
 from gui.motion_gui import btn_connect_platform_callback, connect_platform, btn_connect_table_callback, loop_motion_gui
-from gui.config_gui import connect_pm2100_device2, connect_pm2100_device1, connect_pm2100_device3, \
-    connect_sync_device, connect_laser_golight_device, connect_laser_broadband_device, init_config_page
+from gui.config_gui import connect_pm2100_device, connect_sync_device, connect_laser_golight_device, connect_laser_broadband_device, init_config_page
 
 
 def main_func(td, sv, pos_array, focus_side_view_r, focus_side_view_l, moving_right_shared):
@@ -44,11 +43,10 @@ def main_func(td, sv, pos_array, focus_side_view_r, focus_side_view_l, moving_ri
     76867
     '''
 
+    dpg.configure_app(
+        manual_callback_management=True)  # Now, мы устанавливаем, что мы вручную будем обрабатывать нажатие кнопок,
 
-    dpg.configure_app(manual_callback_management=True)  # Now, мы устанавливаем, что мы вручную будем обрабатывать нажатие кнопок,
     # то-есть делаем безопасную очередь выполняемых задач, чтобы ставить действие с кнопки в своеобразную очередь
-
-    # Здесь мы можем узреть, фикс со старыми кодировками, как я понял.
     big_let_start = 0x00C0  # Capital "A" in cyrillic alphabet
     big_let_end = 0x00DF
     remap_big_let = 0x0410  # Это кодировка "A" в международном стандарте
@@ -65,10 +63,7 @@ def main_func(td, sv, pos_array, focus_side_view_r, focus_side_view_l, moving_ri
 
     initThemes()  # Задание тем. Размеры кнопок, цвет, фон, всё это можно сделать через эту функцию
 
-    # Вот тут как раз и реализован with для удобного выполнения отдельных
-    # элементов одного окна
     with dpg.window(tag="main_window", no_resize=True):
-        # Здесь мы добавляем, или лучше сказать, привязываем данные с png файлов
         with dpg.texture_registry(show=False) as context.texture_reg:
             width_dev, height_dev, channels_dev, data_dev = dpg.load_image("Pics/dev_conn.png")
             dpg.add_static_texture(width=width_dev, height=height_dev,
@@ -87,19 +82,14 @@ def main_func(td, sv, pos_array, focus_side_view_r, focus_side_view_l, moving_ri
         prepare_input_window()
         context.gui_hlp.prepare_chart_hint()
         context.gui_hlp.prepare_horiz_chart()
-        # Этот "With" задаёт реагирование графика на мышку
         with dpg.item_handler_registry(tag="horiz_widget_handler1"):
             dpg.add_item_clicked_handler(button=0, callback=plot_h_callback1)  # При нажатии на ЛКМ
-            # должно что-то случиться, судя по всему перемещение на поставленную точку
         dpg.bind_item_handler_registry(context.gui_hlp.horiz_chart1, "horiz_widget_handler1")
         with dpg.table(header_row=False, resizable=False, policy=dpg.mvTable_SizingFixedFit):  # , freeze_columns=9):
-            # Тут я заменил 16 строк add_table_column() на один цикл,
-            # вроде это не должно сломать работу кода
             for _ in range(16):
                 dpg.add_table_column()
+            with dpg.table_row():
 
-            with dpg.table_row():  # А здесь, как видно из названия, создаётся строка внутри таблицы.
-                # А дальше создаются ячейки для разных приборов
                 with dpg.table_cell():
                     dpg.add_spacer(width=10)
                     dpg.add_text(default_value=txt.PLATFORM_CTRL_TITLE)
@@ -108,38 +98,19 @@ def main_func(td, sv, pos_array, focus_side_view_r, focus_side_view_l, moving_ri
                 with dpg.table_cell():
                     dpg.add_button(label=txt.BTN_CONNECT, tag="platform_conn_btn", user_data=0,
                                    callback=btn_connect_platform_callback, height=25, width=100)
-                with dpg.table_cell():
-                    dpg.add_spacer(width=10)
-                    dpg.add_text(default_value=txt.METER_TITLE + '1')
-                with dpg.table_cell():
-                    dpg.add_image("texture_dev_disc", tag="pm2100_ctrl_state1")
-                with dpg.table_cell():
-                    dpg.add_button(label=txt.BTN_CONNECT, tag="pm2100_conn_btn1", user_data=0,
-                                   callback=connect_pm2100_device1, height=25, width=100)
-                with dpg.table_cell():
-                    dpg.add_spacer(width=10)
-                    dpg.add_text(default_value=txt.METER_TITLE + '2')
-                with dpg.table_cell():
-                    dpg.add_image("texture_dev_disc", tag="pm2100_ctrl_state2")
-                with dpg.table_cell():
-                    dpg.add_button(label=txt.BTN_CONNECT, tag="pm2100_conn_btn2", user_data=0,
-                                   callback=connect_pm2100_device2, height=25, width=100)
-                with dpg.table_cell():
-                    dpg.add_spacer(width=10)
-                    dpg.add_text(default_value=txt.METER_TITLE + '3')
-                with dpg.table_cell():
-                    dpg.add_image("texture_dev_disc", tag="pm2100_ctrl_state3")
-                with dpg.table_cell():
-                    dpg.add_button(label=txt.BTN_CONNECT, tag="pm2100_conn_btn3", user_data=0,
-                                   callback=connect_pm2100_device3, height=25, width=100)
-                    # Это можно убрать
-                with dpg.table_cell():
-                    pass
+                for i in range(3):
+                    with dpg.table_cell():
+                        dpg.add_spacer(width=10)
+                        dpg.add_text(default_value=f'{txt.METER_TITLE}{i + 1}')
+                    with dpg.table_cell():
+                        dpg.add_image("texture_dev_disc", tag=f"pm2100_ctrl_state{i + 1}")
+                    with dpg.table_cell():
+                        dpg.add_button(label=txt.BTN_CONNECT, tag=f"pm2100_conn_btn{i + 1}", user_data=[0, i+1],
+                                       callback=connect_pm2100_device, height=25, width=100)
             with dpg.table_row():
                 with dpg.table_cell():
                     dpg.add_text(default_value=txt.TABLE_CTRL_TITLE)
                 with dpg.table_cell():
-                    #                dpg.add_text(tag="table_ctrl_state", default_value=txt.STATE_DISCONNECTED, color=[255, 0, 0])
                     dpg.add_image("texture_dev_disc", tag="table_ctrl_state")
                 with dpg.table_cell():
                     dpg.add_button(label=txt.BTN_CONNECT, tag="table_conn_btn", user_data=0,
@@ -168,13 +139,6 @@ def main_func(td, sv, pos_array, focus_side_view_r, focus_side_view_l, moving_ri
                 with dpg.table_cell():
                     dpg.add_button(label=txt.BTN_CONNECT, tag="sync_conn_btn", user_data=0,
                                    callback=connect_sync_device, height=25, width=100)
-
-                with dpg.table_cell():
-                    dpg.add_text(default_value="  ")
-                with dpg.table_cell():
-                    dpg.add_text(default_value="  ")
-                with dpg.table_cell():
-                    dpg.add_text(default_value=" ")
         context.cur_tab = TAB_MANUAL_ID
         context.motionGUI.add_textures()
 
@@ -207,20 +171,6 @@ def main_func(td, sv, pos_array, focus_side_view_r, focus_side_view_l, moving_ri
     dpg.show_viewport()
     dpg.maximize_viewport()
     dpg.set_primary_window("main_window", True)
-
-    # while dpg.is_dearpygui_running():
-    #     loop_motion_gui()
-    #     context.config_ctrl.loop()
-    #     context.chip_meas_ctrl.chip_loop()
-    #     context.meas_powermap.powermap_loop()
-    #     if context.call_count != -1:
-    #         context.call_count -= 1
-    #         if context.call_count == 0:
-    #             context.call_count = -1
-    #             context.call_function(*context.function_params)
-    #     jobs = dpg.get_callback_queue()
-    #     dpg.run_callbacks(jobs)
-    #     dpg.render_dearpygui_frame()
 
     while dpg.is_dearpygui_running():
         loop_motion_gui()
