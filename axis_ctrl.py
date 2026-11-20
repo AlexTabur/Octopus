@@ -12,6 +12,15 @@ RIGHT_CHAN = 0x000
 speed = 6000
 
 
+def wait_for_hardware():
+    sleep(0.4)
+    while is_platforms_axis_busy() or is_table_axis_busy():
+        if context.break_proc:
+            return
+        else:
+            sleep(0.4)
+
+
 def platforms_homing2():
     if (not context.z_platform.is_connected) or (not context.z_table.is_connected):
         context.logger.log_warning('Не подключен контроллер платформ и/или стола')
@@ -21,167 +30,72 @@ def platforms_homing2():
     datumIn = [0] * 13
     bgIn = [0] * 13
     endIn = [0] * 13
-    try:
 
-        for i in range(0, 12):
-            context.z_platform.set_speed(context.axis[i]['idx'], speed)  # 6000)
-        context.z_table.set_speed(context.axis[context.y_table_i]['idx'], speed)
+    for i in range(0, 12):
+        context.z_platform.set_speed(context.axis[i]['idx'], speed)  # 6000)
+    context.z_table.set_speed(context.axis[context.y_table_i]['idx'], speed)
 
-        for i in range(0, 12):
-            axis = context.axis[i]['idx']
-            datumIn[i] = context.z_platform.get_DatumIn(axis)
-            bgIn[i] = context.z_platform.get_BckIn(axis)
-            endIn[i] = context.z_platform.get_FwdIn(axis)
+    for i in range(0, 12):
+        axis = context.axis[i]['idx']
+        datumIn[i] = context.z_platform.get_DatumIn(axis)
+        bgIn[i] = context.z_platform.get_BckIn(axis)
+        endIn[i] = context.z_platform.get_FwdIn(axis)
 
-            if i == context.x1_line_i or i == context.x2_line_i:
-                context.z_platform.set_DatumIn(axis, bgIn[i])
-            else:
-                context.z_platform.set_DatumIn(axis, endIn[i])
+        if i == context.x1_line_i or i == context.x2_line_i:
+            context.z_platform.set_DatumIn(axis, bgIn[i])
+        else:
+            context.z_platform.set_DatumIn(axis, endIn[i])
 
-        axis = context.axis[context.y_table_i]['idx']
-        datumIn[12] = context.z_table.get_DatumIn(axis)
-        #            bgIn[i] = context.z_platform.get_BckIn(axis)
-        endIn[12] = context.z_table.get_FwdIn(axis)
-        context.z_table.set_DatumIn(axis, endIn[12])
+    axis = context.axis[context.y_table_i]['idx']
+    datumIn[12] = context.z_table.get_DatumIn(axis)
+    #            bgIn[i] = context.z_platform.get_BckIn(axis)
+    endIn[12] = context.z_table.get_FwdIn(axis)
+    context.z_table.set_DatumIn(axis, endIn[12])
 
-        for i in (context.x1_line_i, context.x2_line_i):
-            context.z_platform.platform_to_home(context.axis[i]['idx'], 4)
+    for i in (context.x1_line_i, context.x2_line_i):
+        context.z_platform.platform_to_home(context.axis[i]['idx'], 4)
 
-        for _ in range(50):
-            if context.break_proc:
-                return
-            sleep(0.1)
+    for _ in range(50):
+        if context.break_proc:
+            return
+        sleep(0.1)
 
-        context.z_table.platform_to_home(context.axis[context.y_table_i]['idx'], 3)
-        # context.z_platform.platform_to_home(context.axis[context.z1_line_i]['idx'], 3)
-        # context.z_platform.platform_to_home(context.axis[context.z2_line_i]['idx'], 3)
-        # sleep(2)
+    context.z_table.platform_to_home(context.axis[context.y_table_i]['idx'], 3)
+    # context.z_platform.platform_to_home(context.axis[context.z1_line_i]['idx'], 3)
+    # context.z_platform.platform_to_home(context.axis[context.z2_line_i]['idx'], 3)
+    # sleep(2)
 
-        for i in range(0, 12):
-            if i != context.x1_line_i and i != context.x2_line_i:
-                context.z_platform.platform_to_home(context.axis[i]['idx'], 3)
+    for i in range(0, 12):
+        if i != context.x1_line_i and i != context.x2_line_i:
+            context.z_platform.platform_to_home(context.axis[i]['idx'], 3)
 
-        while (is_platforms_axis_busy() or is_table_axis_busy()) and (not context.break_proc):
-            pass
-    except Exception as e:
-        print(e)
-    finally:
+    while (is_platforms_axis_busy() or is_table_axis_busy()) and (not context.break_proc):
+        pass
 
-        for i in range(0, 12):
-            axis = context.axis[i]['idx']
-            context.z_platform.set_DatumIn(axis, datumIn[i])
+    for i in range(0, 12):
+        axis = context.axis[i]['idx']
+        context.z_platform.set_DatumIn(axis, datumIn[i])
 
-        axis = context.axis[context.y_table_i]['idx']
-        context.z_table.set_DatumIn(axis, datumIn[12])
+    axis = context.axis[context.y_table_i]['idx']
+    context.z_table.set_DatumIn(axis, datumIn[12])
 
-        for i in range(0, 12):
-            context.z_platform.stop(context.axis[i]['idx'], 3)
-            context.z_platform.set_pos(context.axis[i]['idx'], 0)
-        context.z_table.stop(context.axis[context.y_table_i]['idx'], 3)
-        context.z_table.set_pos(context.axis[context.y_table_i]['idx'], 0)
+    for i in range(0, 12):
+        context.z_platform.stop(context.axis[i]['idx'], 3)
+        context.z_platform.set_pos(context.axis[i]['idx'], 0)
+    context.z_table.stop(context.axis[context.y_table_i]['idx'], 3)
+    context.z_table.set_pos(context.axis[context.y_table_i]['idx'], 0)
 
-        set_platforms_speed(context.speed_value_platform)
-        set_table_speed(context.speed_value_platform)
-        context.z_table.stop(12, 3)
-        context.z_table.set_creep(12, 0)
-        context.z_table.set_decel(12, 0)
-        init_platforms_complete(context.break_proc is False)
-        popup_close()
-
-        if context.platforms_initialized:
-            # context.z_platform.move_to(context.axis[context.y1_line_i]['idx'], -125000)
-            # context.z_platform.move_to(context.axis[context.y2_line_i]['idx'], -125000)
-            # context.z_platform.move_to(context.axis[context.x1_ang_i]['idx'], -20000)
-            # context.z_platform.move_to(context.axis[context.y1_ang_i]['idx'], -20000)
-            # context.z_platform.move_to(context.axis[context.z1_ang_i]['idx'], -20000)
-            # context.z_platform.move_to(context.axis[context.x2_ang_i]['idx'], -20000)
-            # context.z_platform.move_to(context.axis[context.y2_ang_i]['idx'], -20000)
-            # context.z_platform.move_to(context.axis[context.z2_ang_i]['idx'], -20000)
-            move_all_to_preset(128)
-        context.break_proc = False
-
-
-'''def platforms_homing2():
-    if (not context.z_platform.is_connected) or (not context.z_table.is_connected):
-        context.logger.log_warning('Не подключен контроллер платформ и/или стола')
-        popup_close()
-        return
-
-    datumIn = [0] * 13
-    bgIn = [0] * 13
-    endIn = [0] * 13
-    try:
-
-        for i in range(0, 12):
-            context.z_platform.set_speed(context.axis[i]['idx'], speed)  # 6000)
-        context.z_table.set_speed(context.axis[context.y_table_i]['idx'], speed)
-
-        for i in range(0, 12):
-            axis = context.axis[i]['idx']
-            datumIn[i] = context.z_platform.get_DatumIn(axis)
-            bgIn[i] = context.z_platform.get_BckIn(axis)
-            endIn[i] = context.z_platform.get_FwdIn(axis)
-
-            if i == context.x1_line_i or i == context.x2_line_i:
-                context.z_platform.set_DatumIn(axis, bgIn[i])
-            else:
-                context.z_platform.set_DatumIn(axis, endIn[i])
-
-        axis = context.axis[context.y_table_i]['idx']
-        datumIn[12] = context.z_table.get_DatumIn(axis)
-        #            bgIn[i] = context.z_platform.get_BckIn(axis)
-        endIn[12] = context.z_table.get_FwdIn(axis)
-        context.z_table.set_DatumIn(axis, endIn[12])
-
-        context.z_table.platform_to_home(context.axis[context.y_table_i]['idx'], 3)
-        context.z_platform.platform_to_home(context.axis[context.z1_line_i]['idx'], 3)
-        context.z_platform.platform_to_home(context.axis[context.z2_line_i]['idx'], 3)
-        sleep(2)
-
-        for i in range(0, 12, 1):
-            if i == context.x1_line_i or i == context.x2_line_i:
-                context.z_platform.platform_to_home(context.axis[i]['idx'], 4)
-            else:
-                context.z_platform.platform_to_home(context.axis[i]['idx'], 3)
-
-        while (is_platforms_axis_busy() or is_table_axis_busy()) and (not context.break_proc):
-            pass
-    except Exception as e:
-        print(e)
-    finally:
-
-        for i in range(0, 12):
-            axis = context.axis[i]['idx']
-            context.z_platform.set_DatumIn(axis, datumIn[i])
-
-        axis = context.axis[context.y_table_i]['idx']
-        context.z_table.set_DatumIn(axis, datumIn[12])
-
-        for i in range(0, 12):
-            context.z_platform.stop(context.axis[i]['idx'], 3)
-            context.z_platform.set_pos(context.axis[i]['idx'], 0)
-        context.z_table.stop(context.axis[context.y_table_i]['idx'], 3)
-        context.z_table.set_pos(context.axis[context.y_table_i]['idx'], 0)
-
-        set_platforms_speed(context.speed_value_platform)
-        set_table_speed(context.speed_value_platform)
-        context.z_table.stop(12, 3)
-        context.z_table.set_creep(12, 0)
-        context.z_table.set_decel(12, 0)
-        init_platforms_complete(context.break_proc is False)
-        popup_close()
-
-        if context.platforms_initialized:
-            context.z_platform.move_to(context.axis[context.y1_line_i]['idx'], -125000)
-            context.z_platform.move_to(context.axis[context.y2_line_i]['idx'], -125000)
-            context.z_platform.move_to(context.axis[context.x1_ang_i]['idx'], -20000)
-            context.z_platform.move_to(context.axis[context.y1_ang_i]['idx'], -20000)
-            context.z_platform.move_to(context.axis[context.z1_ang_i]['idx'], -20000)
-            context.z_platform.move_to(context.axis[context.x2_ang_i]['idx'], -20000)
-            context.z_platform.move_to(context.axis[context.y2_ang_i]['idx'], -20000)
-            context.z_platform.move_to(context.axis[context.z2_ang_i]['idx'], -20000)
+    set_platforms_speed(context.speed_value_platform)
+    set_table_speed(context.speed_value_platform)
+    context.z_table.stop(12, 3)
+    context.z_table.set_creep(12, 0)
+    context.z_table.set_decel(12, 0)
+    init_platforms_complete(context.break_proc is False)
+    if context.platforms_initialized:
         move_all_to_preset(128)
-'''
+    context.break_proc = False
+    wait_for_hardware()
+    popup_close()
 
 
 def move_platform_to_preset(preset):
@@ -368,7 +282,6 @@ def move_all_to_preset(preset):
             context.z_platform.set_speed(context.axis[i]['idx'], context.speed_value_platform)
         context.z_table.stop(context.axis[context.y_table_i]['idx'], 3)
         context.z_table.set_speed(context.axis[context.y_table_i]['idx'], context.speed_value_platform)
-
 
 
 def connect_platform():
