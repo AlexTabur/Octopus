@@ -223,8 +223,6 @@ def get_line():
     else:
         ret = ""
     # print("To return", ret, type(ret))
-
-
     a = ret.split("#")
     if len(a) < 2:
         a.append("Действие")
@@ -276,7 +274,6 @@ def btn_run_callback(sender, app_data, user_data):
 
         thread_proc = threading.Thread(target=func, args=[], daemon=True)
         thread_proc.start()
-
 
     # thread_proc.start()
     if context.line_count > context.line_n + 1:
@@ -346,7 +343,6 @@ class MotionGUI:
         self.thread_proc.start()
 
     def btn_move_to_preset_click(self, sender, app_data, user_data):
-        print(user_data)
         context.gui_hlp.showMessage(txt.PLATFORM_POSITIONING_MSG, txt.BREAK, DLG_CT_BREAK_PROC)
         if user_data & 0x10:  # left platform
             self.thread_proc = threading.Thread(target=move_platform_to_preset, args=[user_data],
@@ -592,22 +588,7 @@ class MotionGUI:
             dpg.add_image_button(context.axis[12]['txt_m'],
                                  tag=context.axis[12]['name'] + 'bnt_m')
         with dpg.group(pos=(_x + 60, _y), horizontal=True):
-            # with dpg.group(horizontal=False):
-            #     dpg.add_button(label="Z", callback=move_z)
-            #     dpg.add_button(label="X", callback=move_x)
-            #     dpg.add_button(label="Рыскание", callback=rotate_z)
-            #     dpg.add_button(label="Тангаж", callback=rotate_y)
-            #     dpg.add_button(label="Y", callback=move_y)
-
             with dpg.group(horizontal=False):
-                # dpg.add_slider_int(label="Высота чипа", default_value=5700, max_value=10000, min_value=1, tag="th1",
-                #                    width=250)
-                # dpg.add_slider_int(label="длина чипа", default_value=int(255 * 0.5), max_value=255, min_value=1,
-                #                    tag="th2",
-                #                    width=250)
-                # dpg.add_button(label="Предыдущий чип", callback=lambda: move_chip(False))
-                # dpg.add_button(label="Следующий чип", callback=lambda: move_chip(True))
-
                 dpg.add_text(tag="SpeedValue")
                 dpg.add_text(txt.SET_SPEED_BTN)
                 with dpg.group(horizontal=True):
