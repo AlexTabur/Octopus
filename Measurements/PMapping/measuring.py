@@ -25,10 +25,9 @@ class PMapMeasureProcedures:
         self.last_max_x_coord = None
         self.last_max_power = -9999.0
         self.broadband_active = False
-        self.x_idx = context.y2_line_i
-        self.y_idx = context.z2_line_i
-        self.y_axis = int(context.axis[self.y_idx]['idx'])
-        self.x_axis = int(context.axis[self.x_idx]['idx'])
+        self.y_axis = int(context.axis[context.z2_line_i]['idx'])
+        self.x_axis = int(context.axis[context.y2_line_i]['idx'])
+
         self.accT = 0
         self.accS = 0
         self.moveT = 0
@@ -90,7 +89,6 @@ class PMapMeasureProcedures:
         self.x_speed = 0
         self.x_acc = 0
         self.x_dec = 0
-
 
     @staticmethod
     def save_anchor():
@@ -167,23 +165,21 @@ class PMapMeasureProcedures:
 
     def set_platform(self, right):
         if not right:
-            self.x_idx = context.y1_line_i
-            self.y_idx = context.z1_line_i
-            self.x_axis = int(context.axis[self.x_idx]['idx'])
-            self.y_axis = int(context.axis[self.y_idx]['idx'])
             self.pitch_idx = context.y1_ang_i
             self.horiz_idx = context.x1_ang_i
             self.pitch_axis = int(context.axis[self.pitch_idx]['idx'])
             self.horiz_axis = int(context.axis[self.horiz_idx]['idx'])
+            self.platform = LEFT_CHAN
+            self.x_axis = int(context.axis[context.y1_line_i]['idx'])
+            self.y_axis = int(context.axis[context.z1_line_i]['idx'])
         else:
-            self.x_idx = context.y2_line_i
-            self.y_idx = context.z2_line_i
-            self.x_axis = int(context.axis[self.x_idx]['idx'])
-            self.y_axis = int(context.axis[self.y_idx]['idx'])
             self.pitch_idx = context.y2_ang_i
             self.horiz_idx = context.x2_ang_i
             self.pitch_axis = int(context.axis[self.pitch_idx]['idx'])
             self.horiz_axis = int(context.axis[self.horiz_idx]['idx'])
+            self.platform = RIGHT_CHAN
+            self.x_axis = int(context.axis[context.y2_line_i]['idx'])
+            self.y_axis = int(context.axis[context.z2_line_i]['idx'])
 
     def save(self, acc, dec, speed):
         res, self.x_acc = context.z_platform.get_accel(self.x_axis)
