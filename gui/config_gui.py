@@ -365,25 +365,11 @@ def select_sync_com(sender, app_data, user_data):
     context.device_worker.sync_ctrl.set_addr(param)
 
 
-def connect_pm2100_device3(sender, app_data, user_data):
-    if user_data == 0:
-        context.device_worker.connectPM2100(3)
-    elif user_data == 1:
-        context.device_worker.disconnectPM2100(3)
-
-
-def connect_pm2100_device2(sender, app_data, user_data):
-    if user_data == 0:
-        context.device_worker.connectPM2100(2)
-    elif user_data == 1:
-        context.device_worker.disconnectPM2100(2)
-
-
-def connect_pm2100_device1(sender, app_data, user_data):
-    if user_data == 0:
-        context.device_worker.connectPM2100(1)
-    elif user_data == 1:
-        context.device_worker.disconnectPM2100(1)
+def connect_pm2100_device(sender, app_data, user_data):
+    if user_data[0] == 0:
+        context.device_worker.connectPM2100(user_data[1])
+    elif user_data[0] == 1:
+        context.device_worker.disconnectPM2100(user_data[1])
 
 
 def connect_sync_device(sender, app_data, user_data):
