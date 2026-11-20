@@ -210,8 +210,6 @@ def move_platform_to_preset(preset):
             context.z_platform.stop(context.axis[i]['idx'], 3)
             context.z_platform.set_speed(context.axis[i]['idx'], context.speed_value_platform)
 
-    popup_close()
-
 
 def move_platform_to_chan(platform, chan, chan_dy):
     if not context.z_platform.is_connected:  # context.platforms_initialized:
@@ -349,7 +347,6 @@ def move_table_to_preset(preset):
         context.z_table.stop(context.axis[context.y_table_i]['idx'], 3)
         context.z_table.set_speed(context.axis[context.y_table_i]['idx'], context.speed_value_platform)
     context.z_table.stop(context.axis[context.y_table_i]['idx'], 3)
-    popup_close()
 
 
 def move_all_to_preset(preset):
@@ -371,7 +368,7 @@ def move_all_to_preset(preset):
             context.z_platform.set_speed(context.axis[i]['idx'], context.speed_value_platform)
         context.z_table.stop(context.axis[context.y_table_i]['idx'], 3)
         context.z_table.set_speed(context.axis[context.y_table_i]['idx'], context.speed_value_platform)
-    popup_close()
+
 
 
 def connect_platform():

@@ -345,16 +345,28 @@ class MotionGUI:
     def btn_move_to_preset_click(self, sender, app_data, user_data):
         context.gui_hlp.showMessage(txt.PLATFORM_POSITIONING_MSG, txt.BREAK, DLG_CT_BREAK_PROC)
         if user_data & 0x10:  # left platform
-            self.thread_proc = threading.Thread(target=move_platform_to_preset, args=[user_data],
+            def func(user_data_):
+                move_platform_to_preset(user_data_)
+                popup_close()
+            self.thread_proc = threading.Thread(target=func, args=[user_data],
                                                 daemon=True)
         elif user_data & 0x20:  # table platform
-            self.thread_proc = threading.Thread(target=move_table_to_preset, args=[user_data],
+            def func(user_data_):
+                move_table_to_preset(user_data_)
+                popup_close()
+            self.thread_proc = threading.Thread(target=func, args=[user_data],
                                                 daemon=True)
         elif user_data & 0x40:  # right platform
-            self.thread_proc = threading.Thread(target=move_platform_to_preset, args=[user_data],
+            def func(user_data_):
+                move_platform_to_preset(user_data_)
+                popup_close()
+            self.thread_proc = threading.Thread(target=func, args=[user_data],
                                                 daemon=True)
         elif user_data & 0x80:  # all platform
-            self.thread_proc = threading.Thread(target=move_all_to_preset, args=[user_data],
+            def func(user_data_):
+                move_all_to_preset(user_data_)
+                popup_close()
+            self.thread_proc = threading.Thread(target=func, args=[user_data],
                                                 daemon=True)
         self.thread_proc.start()
 
