@@ -31,7 +31,6 @@ def recalc_um():
     dpg.set_value("xscale_steps", f"{x_scale} шагов")
 
 
-def set_powermap_measure_params(pm_channel, pm_channel2, y_count, x_scale, delta, chan_dist, after_measure):
 def set_scan_size(x_scale, y_scale, delta):
     context.pmap_procedures.x_count = int(x_scale / delta)
     context.pmap_procedures.y_count = int(y_scale / delta)
