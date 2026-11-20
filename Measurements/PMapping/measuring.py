@@ -1610,38 +1610,24 @@ class PMapMeasureProcedures:
 
     def yustirovka_all(self, min_power, target_power, max_iterations, tolerance):
         self.turn_broadband_on()
-        context.logger.log("Super Yustirovka")
         context.logger.log("Сканирование малой зоны")
-
         success = self.adjustment_all_2(min_power)
-
         if context.break_proc: return
-
         if not success:
             context.logger.log("Сигнал не найден. Расширение зоны")
-            self.y_count = 720
-            self.x_scale = 6
+            set_scan_size(30, 90, 3)
             success = self.adjustment_all_2(min_power)
-
         if context.break_proc: return
-
         if success:
             context.logger.log("Сигнал найден! Точная юстировка.")
-            self.x_scale = 10
-            self.y_count = 5
-            self.delta = int(2 * 1000 / NM_PER_STEP_Z)
+            set_scan_size(10, 10, 2)
             self.adjustment_l_and_r(target_power, max_iterations, tolerance)
-
             if context.break_proc: return
-
-            context.logger.log("Юстировка крена.")
             self.correct_horizont_linear()
-
             if context.break_proc: return
-
             context.logger.log("Крен скорректирован. Финальная юстирока.")
+            set_scan_size(40, 40, 4)
             self.adjustment_l_and_r(target_power, max_iterations, tolerance)
-
             context.logger.log("Цикл юстироки завершён")
             self.turn_broadband_off()
 
