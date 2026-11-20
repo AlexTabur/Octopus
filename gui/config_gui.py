@@ -8,6 +8,7 @@ from core.gui_helper import check_edit_data, set_conn_states
 from core.texts import *
 from core.utils import *
 from time import sleep
+
 context = Context()
 
 
@@ -141,8 +142,8 @@ class ConfigCtrl:
             else:
                 set_conn_states("laser_broadband_ctrl_state", "laser_broadband_conn_btn", 0)
                 context.device_worker.is_laser_broadband_connected = False
-                
-        if context.device_worker.pm2100_1_ctrl.state & 1: 
+
+        if context.device_worker.pm2100_1_ctrl.state & 1:
             context.device_worker.pm2100_1_ctrl.state &= 0xFE
             if context.device_worker.pm2100_1_ctrl.init():
                 set_conn_states("pm2100_ctrl_state1", "pm2100_conn_btn1", 1)
@@ -153,7 +154,7 @@ class ConfigCtrl:
                 set_conn_states("pm2100_ctrl_state1", "pm2100_conn_btn1", 0)
                 context.device_worker.is_pm2100_1_connected = False
                 config_pm_modules(['', '', '', '', ''], 1)
-            
+
             config_pm_devices()
 
         if context.device_worker.pm2100_2_ctrl.state & 1:
@@ -167,10 +168,10 @@ class ConfigCtrl:
                 set_conn_states("pm2100_ctrl_state2", "pm2100_conn_btn2", 0)
                 context.device_worker.is_pm2100_2_connected = False
                 config_pm_modules(['', '', '', '', ''], 2)
-            
+
             config_pm_devices()
 
-        if context.device_worker.pm2100_3_ctrl.state & 1:  
+        if context.device_worker.pm2100_3_ctrl.state & 1:
             context.device_worker.pm2100_3_ctrl.state &= 0xFE
             if context.device_worker.pm2100_3_ctrl.init():
                 set_conn_states("pm2100_ctrl_state3", "pm2100_conn_btn3", 1)
@@ -181,7 +182,7 @@ class ConfigCtrl:
                 set_conn_states("pm2100_ctrl_state3", "pm2100_conn_btn3", 0)
                 context.device_worker.is_pm2100_3_connected = False
                 config_pm_modules(['', '', '', '', ''], 3)
-            
+
             config_pm_devices()
 
         now = round(time.time() * 1000)
@@ -217,9 +218,9 @@ class ConfigCtrl:
             if context.device_worker.pm2100_1_ctrl.value_upd:
                 context.device_worker.pm2100_1_ctrl.value_upd = False
                 for i in range(0, 20):
-                    
+
                     dpg.set_value(f"PM2100_ch{i}", f'{context.pm_values[i]}')
-                    
+
                     if i == context.meas_powermap.meas_chan:
                         dpg.set_value("pmap_meas_power", f'{context.pm_values[i]}')
                     if i == context.meas_powermap.meas_chan2:
@@ -230,7 +231,7 @@ class ConfigCtrl:
                 val1 = 0
                 val2 = 0
                 for i in range(20, 40):
-                    
+
                     dpg.set_value(f"PM2100_ch{i}", f'{context.pm_values[i]}')
 
                     if i == context.meas_powermap.meas_chan:
@@ -242,14 +243,14 @@ class ConfigCtrl:
                     if i == context.chip_meas_ctrl.meas_chan:
                         dpg.set_value("chip_meas_power", f'{context.pm_values[i]}')
                 dpg.set_value("pmap_meas_power_diff", f'{round(float(val1) - float(val2), 3)}')
-                dpg.set_value("pmap_meas_power_avg", f'{round((float(val1) + float(val2))/2, 3)}')
+                dpg.set_value("pmap_meas_power_avg", f'{round((float(val1) + float(val2)) / 2, 3)}')
 
             if context.device_worker.pm2100_3_ctrl.value_upd:
                 context.device_worker.pm2100_3_ctrl.value_upd = False
                 for i in range(40, 60):
-                    
+
                     dpg.set_value(f"PM2100_ch{i}", f'{context.pm_values[i]}')
-                    
+
                     if i == context.meas_powermap.meas_chan:
                         dpg.set_value("pmap_meas_power", f'{context.pm_values[i]}')
                     if i == context.meas_powermap.meas_chan2:
@@ -397,6 +398,7 @@ def connect_laser_golight_device(sender, app_data, user_data):
         context.device_worker.connectGolightLaser()
     elif user_data == 1:
         context.device_worker.disconnectGolightLaser()
+
 
 def connect_laser_broadband_device(sender, app_data, user_data):
     if user_data == 0:
