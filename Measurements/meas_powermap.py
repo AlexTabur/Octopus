@@ -1,4 +1,5 @@
 import threading
+from time import sleep
 
 from axis_ctrl import is_platforms_axis_busy
 from core.gui_helper import *
@@ -31,18 +32,34 @@ def recalc_um():
 
 
 def set_powermap_measure_params(pm_channel, pm_channel2, y_count, x_scale, delta, chan_dist, after_measure):
+def set_scan_size(x_scale, y_scale, delta):
+    context.pmap_procedures.x_count = int(x_scale / delta)
+    context.pmap_procedures.y_count = int(y_scale / delta)
+    context.pmap_procedures.x_scale = int(x_scale * 8)
+    context.pmap_procedures.y_scale = int(y_scale * 8)
+    context.pmap_procedures.delta = int(delta * 8)
+
+
+def set_powermap_measure_params(pm_channel, pm_channel2, x_scale, y_scale, delta, chan_dist, after_measure):
     # print(pm_channel, pm_channel2, y_count, x_scale, delta, chan_dist, after_measure)
-    context.pmap_procedures.y_count = int(y_count)
-    context.pmap_procedures.x_scale = int(x_scale)
-    context.pmap_procedures.delta = int(delta * 1000 / NM_PER_STEP_Z)
+    set_scan_size(x_scale, y_scale, delta)
     context.pmap_procedures.chan_dist = chan_dist
     context.pmap_procedures.after_measure = after_measure
+
+    context.pmap_procedures.pm_module = pm_channel // 4
+    context.pmap_procedures.pm_chan = pm_channel % 4
+
+    context.pmap_procedures.pm_module2 = pm_channel2 // 4
+    context.pmap_procedures.pm_chan2 = pm_channel2 % 4
 
     if ((not context.device_worker.is_pm2100_1_connected) and
             (not context.device_worker.is_pm2100_2_connected) and
             (not context.device_worker.is_pm2100_3_connected)):
         context.logger.log_warning(txt.PM_NOT_CONNECTED)
         return
+        # if not context.device_worker.is_pm2100_2_connected:
+        #     context.device_worker.connectPM2100(2)
+        #     sleep(5)
     if not context.z_platform.is_connected:
         context.logger.log_warning(txt.PLATFORMS_NOT_CONNECTED)
         return
@@ -52,12 +69,6 @@ def set_powermap_measure_params(pm_channel, pm_channel2, y_count, x_scale, delta
         return
 
     context.gui_hlp.showMessage(txt.PLATFORM_AIMING_MSG, txt.BREAK, DLG_CT_BREAK_PROC, prog_bar=True)
-
-    context.pmap_procedures.pm_module = pm_channel // 4
-    context.pmap_procedures.pm_chan = pm_channel % 4
-
-    context.pmap_procedures.pm_module2 = pm_channel2 // 4
-    context.pmap_procedures.pm_chan2 = pm_channel2 % 4
 
 
 class MeasurePowerMap:
@@ -377,23 +388,10 @@ def make_sync_dbg_start_meas(sender, app_data, user_data):
 
 def platform_sel_callback(sender, app_data, user_data):
     if dpg.get_value("pmap_platform") == LEFT:
-        context.pmap_procedures.platform = LEFT_CHAN
-        context.pmap_procedures.y_idx = context.z1_line_i
-        context.pmap_procedures.x_idx = context.y1_line_i
-        context.pmap_procedures.horiz_idx = context.x1_ang_i
-        context.pmap_procedures.pitch_idx = context.y1_ang_i
+        context.pmap_procedures.set_platform(False)
 
-    else:  # RIGHT platform
-        context.pmap_procedures.platform = RIGHT_CHAN
-        context.pmap_procedures.y_idx = context.z2_line_i
-        context.pmap_procedures.x_idx = context.y2_line_i
-        context.pmap_procedures.horiz_idx = context.x2_ang_i
-        context.pmap_procedures.pitch_idx = context.y2_ang_i
-
-    context.pmap_procedures.y_axis = int(context.axis[context.pmap_procedures.y_idx]['idx'])
-    context.pmap_procedures.x_axis = int(context.axis[context.pmap_procedures.x_idx]['idx'])
-    context.pmap_procedures.horiz_axis = int(context.axis[context.pmap_procedures.horiz_idx]['idx'])
-    context.pmap_procedures.pitch_axis = int(context.axis[context.pmap_procedures.pitch_idx]['idx'])
+    else:
+        context.pmap_procedures.set_platform(True)
 
 
 context.meas_powermap = MeasurePowerMap()
