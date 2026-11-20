@@ -1,8 +1,17 @@
-from axis_ctrl import is_platforms_axis_busy
+from axis_ctrl import is_platforms_axis_busy, is_table_axis_busy
 from core.utils import *
 from core.consts import *
-import time
+from time import time, sleep
 import statistics
+
+
+def wait_for_hardware():
+    sleep(0.4)
+    while is_platforms_axis_busy() or is_table_axis_busy():
+        if context.break_proc:
+            return
+        else:
+            sleep(0.4)
 
 
 def points_to_k_b(point0, point1):
@@ -40,6 +49,7 @@ def focus_side_view():
         coord = focus_array_x[index]
         context.z_table.move_to(AXIS_TABLE, coord)
     context.break_proc = False
+    wait_for_hardware()
 
 
 def get_angles():
@@ -57,6 +67,7 @@ def get_angles2(pos):
 
 def move_table_(d):
     context.z_table.move(AXIS_TABLE, d / UM_PER_STEP_TABLE)
+    wait_for_hardware()
 
 
 def move_(axis, d):
@@ -86,6 +97,7 @@ def move_y():
         print("A_r", context.A_r)
         # --END --
         move_(1, -dy / PIX_PER_UM)
+        wait_for_hardware()
         move_(0, dx / PIX_PER_UM)
         # move_(1, -10)
         # move_(1, -100)  # Переезжаем на 40 мкм
@@ -96,11 +108,13 @@ def move_y():
         print("A_l", context.A_l)
         # --END--
         move_(1, dy / PIX_PER_UM)
+        wait_for_hardware()
         move_(0, dx / PIX_PER_UM)
         # move_(1, -40)
         # move_(1, 50)  # Переезжаем на 40 мкм
         if hasattr(context, "anchor_l_z"):
             context.z_platform.move_to(1, context.anchor_l_z)
+    wait_for_hardware()
 
 
 def move_z():
@@ -114,6 +128,7 @@ def move_z():
     else:
         move_(2, -dz / PIX_PER_UM)
     move_(1, -9608)
+    wait_for_hardware()
 
 
 def rotate_y(max_iterations=3, num_samples=20, delay_between_samples=0.2):
@@ -123,7 +138,7 @@ def rotate_y(max_iterations=3, num_samples=20, delay_between_samples=0.2):
         for _ in range(num_samples):
             dx_raw = context.camera_angles_sv[1] - context.camera_angles_sv[0]
             dx_values.append(dx_raw)
-            time.sleep(delay_between_samples)
+            sleep(delay_between_samples)
 
         dx_stable = statistics.median(dx_values)
         context.logger.log(f"Угол для поворота: {dx_stable:.4f}")
@@ -133,10 +148,7 @@ def rotate_y(max_iterations=3, num_samples=20, delay_between_samples=0.2):
         else:
             move_(4, dx_stable)
 
-        while is_platforms_axis_busy():
-            time.sleep(0.05)
-
-        time.sleep(1.2)
+        wait_for_hardware()
 
 
 def rotate_z():
@@ -145,6 +157,7 @@ def rotate_z():
         move_(5, -angle1)
     else:
         move_(5, -angle1)
+    wait_for_hardware()
 
 
 def get_axis_platforms(right):
@@ -166,13 +179,13 @@ def next_chip(up=True):
     context.z_platform.move_to(context.axis[0][2], context.A_l[0])  # x left
     context.z_platform.move_to(context.axis[1][2], context.A_l[1])  # y left
     context.z_platform.move_to(context.axis[2][2], context.A_l[2])  # z left
-    context.z_platform.move_to(context.axis[0+6][2], context.A_r[0])  # x right
+    context.z_platform.move_to(context.axis[0 + 6][2], context.A_r[0])  # x right
     ugol = np.deg2rad(context.strip_angle - table_angle)
     dist_1 = chip_length * np.cos(ugol)
     if up:
         dist_1 *= -1
     dist = dist_1 / UM_PER_STEP_TABLE
-    context.pmap_procedures.wait_for_hardware()
+    wait_for_hardware()
     context.z_table.move(1, dist)
 
 
@@ -182,3 +195,4 @@ def focus_on_waveguides():
     else:
         dz = TOP_TO_WAVEGUIDE_UM_SIDEWAYS_L * np.sin(np.deg2rad(context.sv_angle[0]))
     move_(2, dz)
+    wait_for_hardware()
