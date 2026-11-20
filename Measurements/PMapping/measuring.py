@@ -3,11 +3,12 @@ from time import time, sleep, perf_counter
 
 import threading
 import Measurements.devices.pm2100 as pm2100
+from Measurements.meas_powermap import set_scan_size
 from axis_ctrl import is_platforms_axis_busy
 from core.consts import *
 from core.gui_helper import *
 from core.utils import *
-from move_from_camera import get_axis_platforms
+from move_from_camera import get_axis_platforms, wait_for_hardware
 
 context = Context()
 
@@ -18,17 +19,16 @@ GO_TO_MAX = 2
 class PMapMeasureProcedures:
 
     def __init__(self):
-
+        self.init_pos_x = None
         self.init_pos_y = None
         self.last_max_y_coord = None
         self.last_max_x_coord = None
-        self.last_max_power = None
+        self.last_max_power = -9999.0
         self.broadband_active = False
         self.x_idx = context.y2_line_i
         self.y_idx = context.z2_line_i
         self.y_axis = int(context.axis[self.y_idx]['idx'])
         self.x_axis = int(context.axis[self.x_idx]['idx'])
-        self.init_pos_x = None
         self.accT = 0
         self.accS = 0
         self.moveT = 0
@@ -48,9 +48,11 @@ class PMapMeasureProcedures:
         self.pm_chan = -1
         self.pm_chan2 = -1
 
-        self.y_count = 20
-        self.delta = 8 * 0.5
+        self.x_count = 25
+        self.y_count = 25
+        self.delta = int(4 * 8)
         self.x_scale = 100
+        self.y_scale = 100
 
         self.zero_pos_x = -1
         self.zero_pos_y = -1
@@ -67,8 +69,8 @@ class PMapMeasureProcedures:
 
         self.map_side = LEFT_CHAN
 
-        self.ser_data = np.zeros(shape=[self.x_scale, self.y_count])
-        self.ser_data2 = np.zeros(shape=[self.x_scale, self.y_count])
+        self.ser_data = np.ones(shape=[self.y_scale, self.x_scale]) * 130
+        self.ser_data2 = np.ones(shape=[self.y_scale, self.x_scale]) * 130
         self.ser_data_res = [0, 0, 0, 0, 0]
 
         self.after_measure = GO_TO_ZERO
@@ -876,7 +878,7 @@ class PMapMeasureProcedures:
             popup_close()
 
     def correct_horizont_linear(self):
-        # Просто задаём параметры для действий
+        context.logger.log("Юстировка крена.")
         context.pmap_procedures.set_platform(True)
         context.is_meas_in_process = True
         context.break_proc = False
