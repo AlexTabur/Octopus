@@ -512,11 +512,11 @@ class MotionGUI:
         h = int(40 * 0.5)
         _y = 140
         __y = 550
-        _x = 200
+        _x = 1100
         __x = 0
         scale = 500 / 973 * 0.4
         context.line_n = 0
-        with dpg.group(pos=(_x + 500 + 60, _y), horizontal=False):
+        with dpg.group(pos=(10, 140), horizontal=False):
             dpg.add_button(tag="run_line", label="ВЫПОЛНИТЬ СТРОКУ", callback=btn_run_callback)
             dpg.add_spacer(height=30)
             with dpg.group(horizontal=True):
@@ -622,7 +622,7 @@ class MotionGUI:
                 set_speed_value(context.speed_value_platform)
 
         # RIGHT PLATFORM BUTTONS
-        _x = 450
+        _x += 450
         dpg.add_image('texture_xyzr', pos=(_x + int(w / 2), __y + int(h / 2)), height=int(973 * scale),
                       width=int(973 * scale))
 
