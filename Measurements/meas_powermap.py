@@ -309,7 +309,8 @@ class MeasurePowerMap:
         if dpg.get_value(context.tabBar) != TAB_POWERMAP_ID:
             return
         if self.pm_mode == 0:
-            self.cross = context.pmap_procedures.process_crosshair(self.cross)
+            pass
+            # self.cross = context.pmap_procedures.process_crosshair(self.cross)
 
 
 def sync_mode_callback(sender, app_data, user_data):
