@@ -154,55 +154,60 @@ class MeasurePowerMap:
 
     def prepare(self):
         context.pmap_procedures.is_prepared = True
-        context.pmap_procedures.ser_data = np.zeros(
-            shape=[context.pmap_procedures.x_scale, context.pmap_procedures.y_count])
-
-        for y in range(0, context.pmap_procedures.y_count):
-            for x in range(0, context.pmap_procedures.x_scale):
-                #                context.pmap_procedures.ser_data[i][j] = 1 - ((i-25)*(j-25)/(25*25))
-                context.pmap_procedures.ser_data[x][y] = (1 - ((y - context.pmap_procedures.y_count / 2) ** 2) / (
-                        (context.pmap_procedures.y_count ** 2) / 4)) * \
-                                                         (1 - ((x - context.pmap_procedures.x_scale / 2) ** 2) / (
-                                                                 (context.pmap_procedures.x_scale ** 2) / 4))
-
-        dpg.add_spacer(height=10)
+        context.pmap_procedures.ser_data = np.ones(
+            shape=[context.pmap_procedures.y_count, context.pmap_procedures.x_count]) * (-110)
         with dpg.group(horizontal=True):
-            self.meas_chart = dpg.add_plot(label="Power map", height=500, width=600, no_menus=True, no_title=True,
-                                           crosshairs=True)
-            if not dpg.does_item_exist("widget handler"):
-                with dpg.item_handler_registry(tag="widget handler"):
-                    dpg.add_item_clicked_handler(button=0, callback=self.plot_callback)
-            dpg.bind_item_handler_registry(self.meas_chart, "widget handler")
-            dpg.push_container_stack(self.meas_chart)
+            with dpg.group(horizontal=True):
+                with dpg.plot(label="Левая платформа", height=500, width=600, no_menus=True, no_title=True,
+                              crosshairs=True) as plot_id:
+                    dpg.add_plot_legend()
+                    dpg.add_plot_axis(dpg.mvXAxis, label="X, мкм", tag="my_x_axis1")
+                    dpg.add_plot_axis(dpg.mvYAxis, label="Y, мкм", tag="my_y_axis1")
+                    dpg.add_heat_series(
+                        x=[.1, .1, .1, .1],
+                        rows=4,
+                        cols=4,
+                        format="",
+                        tag="heatmap1",
+                        parent="my_y_axis1"
+                    )
+                scale_id = dpg.add_colormap_scale(
+                    tag="intensity1",
+                    height=400,
+                    width=80
+                )
+            style_ = dpg.mvPlotColormap_Hot
+            dpg.bind_colormap(plot_id, style_)
+            dpg.bind_colormap(scale_id, style_)
+            with dpg.group(horizontal=True):
+                with dpg.plot(label="Левая платформа", height=500, width=600, no_menus=True, no_title=True,
+                              crosshairs=True) as plot_id:
+                    dpg.add_plot_legend()
+                    dpg.add_plot_axis(dpg.mvXAxis, label="X, мкм", tag="my_x_axis2")
+                    dpg.add_plot_axis(dpg.mvYAxis, label="Y, мкм", tag="my_y_axis2")
+                    dpg.add_heat_series(
+                        x=[.1, .1, .1, .1],
+                        rows=4,
+                        cols=4,
+                        format="",
+                        tag="heatmap2",
+                        parent="my_y_axis2"
+                    )
+                scale_id = dpg.add_colormap_scale(
+                    tag="intensity2",
+                    height=400,
+                    width=80
+                )
+            style_ = dpg.mvPlotColormap_Hot
+            dpg.bind_colormap(plot_id, style_)
+            dpg.bind_colormap(scale_id, style_)
 
-            dpg.add_plot_axis(dpg.mvXAxis, label="мкм", tag="pm_x_axis1")  # , no_tick_labels=True, no_tick_marks=True)
-            dpg.add_plot_axis(dpg.mvYAxis, label="мкм", tag="pm_y_axis1")  # , no_tick_labels=True, no_tick_marks=True)
-
-            context.pmap_procedures.prepArray(context.pmap_procedures.ser_data)
-            context.pmap_procedures.draw_map(context.pmap_procedures.ser_data, 1, True, True)
-            context.pmap_procedures.draw_scale()
-
-            dpg.pop_container_stack()  # pop chart context
-            with dpg.group():
-                with dpg.group(horizontal=True):
-                    with dpg.group():
-                        dpg.add_text(default_value="Платформа")
-                        dpg.add_radio_button(tag="pmap_platform", items=[LEFT, RIGHT], horizontal=True,
-                                             default_value=LEFT, callback=platform_sel_callback)
-                dpg.add_spacer(height=5)
-                with dpg.group(horizontal=True):
-                    with dpg.group():
-                        dpg.add_text(default_value="Режим измерения")
-                        dpg.add_radio_button(tag="pmap_mode", items=[PM_MODE_CHAN, PM_MODE_ROLL], #PM_MODE_PITCH
-                                             horizontal=True,
-                                             default_value=LEFT, callback=self.mode_sel_callback)
-                dpg.add_spacer(height=5)
-                with dpg.group(horizontal=True):
-                    with dpg.group():
-                        dpg.add_text(default_value="Выбор измерителя")
-                        dpg.add_combo(tag="pmap_device", items=[DEV_NOT_FOUND], default_value=DEV_NOT_FOUND,
-                                      width=200, callback=select_pm)
-                dpg.add_spacer(height=5)
+        with dpg.group():
+            with dpg.group(horizontal=False):
+                dpg.add_text(tag="pmap_meas_power_diff")
+                dpg.add_text(tag="pmap_meas_power_avg")
+                dpg.add_combo(tag="pmap_device", items=[DEV_NOT_FOUND], default_value=DEV_NOT_FOUND,
+                              width=200, callback=select_pm)
                 with dpg.group(horizontal=True):
                     with dpg.group():
                         # dpg.add_text(default_value="Канал измерителя")
@@ -214,74 +219,8 @@ class MeasurePowerMap:
                         dpg.add_text(tag="pmap_meas_power2")
                         dpg.add_combo(tag="pmap_meas_chanel2", items=["Нет"], default_value='Нет', width=100,
                                       callback=self.select_pm_chan2)
-
-                    dpg.add_text(tag="pmap_meas_power_diff")
-                    dpg.add_text(tag="pmap_meas_power_avg")
-
-                dpg.add_spacer(height=5)
-                with dpg.group(tag="pm_chan_dist", horizontal=True, show=False):
-                    with dpg.group():
-                        dpg.add_text(default_value="Количество каналов между измеряемыми")
-                        dpg.add_input_int(tag="pmap_chans_dist", width=100, default_value=47, max_value=200,
-                                          min_value=-48,
-                                          min_clamped=True, max_clamped=True)
-                dpg.add_spacer(height=5)
-                dpg.add_checkbox(label='Измерения в синхронном режиме', callback=sync_mode_callback)
-                dpg.add_spacer(height=15)
-                with dpg.group(horizontal=True):
-                    with dpg.group():
-                        dpg.add_text(default_value="Шагов по Z")
-                        context.editor_list.append("pmap_z_count")
-                        dpg.add_input_int(tag="pmap_z_count", width=100, default_value=context.pmap_procedures.y_count,
-                                          min_value=2, max_value=500, min_clamped=True, max_clamped=True)
-
-                    with dpg.group():
-                        dpg.add_text(default_value="Величина шага Z, мкм")
-                        #                        with dpg.group(horizontal=True):
-                        context.editor_list.append("pmap_delta")
-                        delta_um = context.pmap_procedures.delta * Z_MKM_KOEF
-                        dpg.add_input_float(tag="pmap_delta", width=100, default_value=delta_um, step=Y_MKM_KOEF,
-                                            callback=recalc_um, min_value=0.2, max_value=100,
-                                            min_clamped=True, max_clamped=True)
-                        dpg.add_text(default_value=f"{context.pmap_procedures.delta} шагов", tag="delta_steps")
-
-                dpg.add_spacer(height=25)
-                dpg.add_text(default_value="Ширина области Y, мкм")
-                with dpg.group(horizontal=True):
-                    context.editor_list.append("pmap_y_width")
-                    x_scale_um = context.pmap_procedures.x_scale * Y_MKM_KOEF
-                    dpg.add_input_int(tag="pmap_y_width", width=100, default_value=x_scale_um, step=Y_MKM_KOEF,
-                                      callback=recalc_um, min_value=10, max_value=5000,
-                                      min_clamped=True, max_clamped=True)
-                    dpg.add_text(default_value=f"мкм = {context.pmap_procedures.x_scale} шагов", tag="xscale_steps")
-
-                dpg.add_spacer(height=10)
-                dpg.add_button(label="Провести измерение", width=200, height=30,
-                               callback=self.measure_powermap_callback)
-            #                dpg.add_spacer(height=10)
-            #                dpg.add_button(label="Start Meas", width=200, height=30,
-            #                               callback=self.make_sync_dbg_start_meas)
-            #                dpg.add_spacer(height=10)
-            #                dpg.add_button(label="Make Sync", width=200, height=30,
-            #                               callback=self.make_sync_dbg_sync)
-            #                dpg.add_spacer(height=10)
-            #                dpg.add_button(label="Get Meas", width=200, height=30,
-            #                               callback=self.make_sync_dbg_get_meas)
-            #                dpg.add_spacer(height=10)
-            #                dpg.add_button(label="Get Meas state", width=200, height=30,
-            #                               callback=self.make_sync_dbg_get_meas_state)
-            #                dpg.add_spacer(height=10)
-            #                dpg.add_button(label="Get Error", width=200, height=30,
-            #                               callback=self.make_sync_dbg_get_err)
-            #                dpg.add_spacer(height=10)
-            #                dpg.add_button(label="Stop Meas", width=200, height=30,
-            #                               callback=self.make_sync_dbg_stop_meas)
-            self.meas_chart2 = dpg.add_plot(label="Power map", height=500, width=500, no_menus=True, no_title=True,
-                                            show=False, crosshairs=True)
-            if not dpg.does_item_exist("chart2_widget_handler"):
-                with dpg.item_handler_registry(tag="chart2_widget_handler"):
-                    dpg.add_item_clicked_handler(button=0, callback=self.plot_callback2)
-            dpg.bind_item_handler_registry(self.meas_chart2, "chart2_widget_handler")
+        context.pmap_procedures.draw_map(context.pmap_procedures.ser_data, 1)
+        context.pmap_procedures.draw_map(context.pmap_procedures.ser_data, 2)
 
     def select_pm_chan(self, sender, app_data, user_data):
         chan = dpg.get_value('pmap_meas_chanel')
