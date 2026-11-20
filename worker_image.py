@@ -405,8 +405,8 @@ class Image_Worker:
             p1, p2 = (0, 0), (0, 0)
             try:
                 p1, p2 = get_points(cropped)
-            except Exception as e:
-                # print("can't find points,", e)
+            except Exception as e_:
+                # print("can't find points,", e_)
                 pass
             cv2.rectangle(croi, (_a, _c), (_b, _d), (0, 255, 0))
             p1 = p1[0] + _a, p1[1] + _c

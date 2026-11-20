@@ -42,8 +42,8 @@ if __name__ == "__main__":
         [0, 0, 100],
     ])
     for i in points:
-        x, y, z = i
-        cv2.circle(img, (100 + x, 100 + y), 3, (255, 0, 0), 2)
+        _x, _y, _z = i
+        cv2.circle(img, (100 + _x, 100 + _y), 3, (255, 0, 0), 2)
         in_ = i.T
         out_ = rpy_matrix(0, 0, 20) @ in_
         print(out_)

@@ -10,6 +10,7 @@ class Graph(pg.GraphItem):
     def __init__(self):
         self.dragPoint = None
         self.dragOffset = None
+        self.data = None
         pg.GraphItem.__init__(self)
 
     def setData(self, **kwds):

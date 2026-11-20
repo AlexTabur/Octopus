@@ -139,6 +139,8 @@ class Context(metaclass=Singleton):
         self.break_proc = False
         self.current_proc = 0
 
+        self.devices = []
+
         self.pm_modules1 = [0, 0, 0, 0, 0]
         self.pm_modules2 = [0, 0, 0, 0, 0]
         self.pm_modules3 = [0, 0, 0, 0, 0]

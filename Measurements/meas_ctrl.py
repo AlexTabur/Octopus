@@ -6,6 +6,7 @@ import Measurements.devices.sync as sync
 from core.gui_helper import set_conn_states
 from core.utils import *
 import dearpygui.dearpygui as dpg
+
 context = Context()
 
 
@@ -42,6 +43,7 @@ class DeviceWorker:
                 set_conn_states("laser_golight_ctrl_state", "laser_golight_conn_btn", 2)
                 self.laserGolight_connect_thread = Thread(target=self.laser_golight_ctrl.init, args=[], daemon=True)
                 self.laserGolight_connect_thread.start()
+
     def connectBroadbandLaser(self):
         if (not self.laserBroadband_connect_thread.is_alive()) and (not self.is_laser_broadband_connected):
             # self.laser_golight_ctrl.set_timeout(2)
@@ -51,7 +53,6 @@ class DeviceWorker:
                 set_conn_states("laser_broadband_ctrl_state", "laser_broadband_conn_btn", 2)
                 self.laserBroadband_connect_thread = Thread(target=self.laser_broadband_ctrl.init, args=[], daemon=True)
                 self.laserBroadband_connect_thread.start()
-
 
     def connect_sync(self):
         if (not self.sync_connect_thread.is_alive()) and (not self.is_sync_connected):
