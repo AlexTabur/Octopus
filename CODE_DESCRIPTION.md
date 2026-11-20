@@ -657,7 +657,7 @@
     - `get_points`
     - `func`
       - `check_type` 
-  - `get_waveguide_img` Фильтр поиска волноводов.
+  - `get_waveguide_img` TODO.
 
 # zmotion.py
 
