@@ -1,8 +1,5 @@
-import traceback
-from time import time, sleep, perf_counter
+from time import time, sleep
 
-import threading
-import Measurements.devices.pm2100 as pm2100
 from Measurements.meas_powermap import set_scan_size
 from axis_ctrl import is_platforms_axis_busy
 from core.consts import *
