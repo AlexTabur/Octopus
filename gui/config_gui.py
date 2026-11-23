@@ -366,6 +366,7 @@ def select_sync_com(sender, app_data, user_data):
 
 
 def connect_pm2100_device(sender, app_data, user_data):
+    print(user_data)
     if user_data[0] == 0:
         context.device_worker.connectPM2100(user_data[1])
     elif user_data[0] == 1:

@@ -61,9 +61,6 @@ class PMapMeasureProcedures:
         self.map_max_x = 0
         self.map_min_y = 0
         self.map_max_y = 0
-        # self.map_side  = 0
-
-        self.map_side = LEFT_CHAN
 
         self.ser_data = np.ones(shape=[self.y_scale, self.x_scale]) * 130
         self.ser_data2 = np.ones(shape=[self.y_scale, self.x_scale]) * 130
@@ -75,7 +72,6 @@ class PMapMeasureProcedures:
 
         self.pitch_idx = context.y1_ang_i
         self.horiz_idx = context.x1_ang_i
-        self.set_platform(False)
         self.pitch_axis = int(context.axis[self.pitch_idx]['idx'])
         self.horiz_axis = int(context.axis[self.horiz_idx]['idx'])
 
@@ -205,10 +201,6 @@ class PMapMeasureProcedures:
         self.last_max_power = maxVal
         return maxLoc
 
-    def scan_step_y(self):
-        self.map_side = self.platform
-        context.is_meas_in_process = True
-
     def scan_auto(self):
         self.after_measure = GO_TO_MAX
         device = self.pm_dev
@@ -220,7 +212,7 @@ class PMapMeasureProcedures:
 
             self.zero_pos_x = context.z_platform.get_pos(self.x_axis)
             self.zero_pos_y = context.z_platform.get_pos(self.y_axis)
-            self.save(20000, 20000, 1000)
+
 
             # X - Width/2
             context.z_platform.move(self.y_axis, -1 * self.delta * self.y_count / 2)
@@ -344,7 +336,7 @@ class PMapMeasureProcedures:
     def process_crosshair(self, cross):
         if not self.is_prepared:
             return 99999999
-        if self.map_side == LEFT_CHAN:
+        if self.platform == LEFT_CHAN:
             x_pos = context.axis[context.y1_line_i]['pos']
             y_pos = context.axis[context.z1_line_i]['pos']
         else:
@@ -393,8 +385,6 @@ class PMapMeasureProcedures:
     def correct_horizont_sync(self):
         self.horiz1_y = -1
         self.horiz2_y = -1
-
-        self.map_side = self.platform
         context.is_meas_in_process = True
         context.break_proc = False
 
@@ -449,6 +439,76 @@ class PMapMeasureProcedures:
         self.horizont_platform_correction()
         context.is_meas_in_process = False
 
+    def correct_horizont_linear(self):
+        self.turn_broadband_on()
+        context.logger.log("Юстировка крена.")
+        context.pmap_procedures.set_platform(True)
+        context.is_meas_in_process = True
+        context.break_proc = False
+
+        # Задаем параметры одномерного сканирования по вертикали, но всё это нужно правильно перевести в микроны
+        scan_range = 100.0  # Общий ход в микронах (вверх-вниз)
+        step_y = 0.5  # Шаг сканирования
+        steps_count = int(scan_range / step_y)
+
+        steps_real = STEP_PER[self.y_axis]
+        # Списки для записи профиля интенсивности
+        power_profile1 = []
+        power_profile2 = []
+        y_coords = []
+
+        # 1. Запоминаем исходную точку (мы уже стоим в максимуме 1-го канала по X и Y)
+        start_y = context.z_platform.get_pos(self.y_axis)
+
+        # 2. Опускаемся на половину диапазона сканирования вниз, чтобы начать снизу вверх
+        perevod_polovin = int((-scan_range / 2) * steps_real)
+        context.z_platform.move(self.y_axis, perevod_polovin)
+        while is_platforms_axis_busy(): sleep(0.1)
+
+        # 3. Линейный подъем вверх с одновременным чтением двух каналов
+        for _ in range(steps_count):
+            if context.break_proc:
+                break
+
+            perevod_po_y = int(step_y * steps_real)
+            context.z_platform.move(self.y_axis, perevod_po_y)
+            while is_platforms_axis_busy(): sleep(0.1)
+
+            # Запоминаем текущую физическую высоту
+            current_y = context.z_platform.get_pos(self.y_axis)
+            current_y_real = current_y / steps_real
+            y_coords.append(current_y_real)
+
+            # Опрашиваем ОБА канала измерителя одновременно
+            pm_values1 = self.pm_dev.get_power(self.pm_module)
+            sleep(0.2)
+            pm_values2 = self.pm_dev.get_power(self.pm_module2)
+
+            power_profile1.append(float(pm_values1[self.pm_chan]))
+            power_profile2.append(float(pm_values2[self.pm_chan2]))
+
+        if context.break_proc:
+            return
+
+        # 4. Математический поиск максимумов в полученных профилях
+        max_idx1 = np.argmax(power_profile1)
+        max_idx2 = np.argmax(power_profile2)
+
+        # Получаем точные координаты высоты (Z) для обоих максимумов
+        self.horiz1_y = y_coords[max_idx1]
+        self.horiz2_y = y_coords[max_idx2]
+
+        context.logger.log(f"Линейный поиск завершен. Пик 1 на Y={self.horiz1_y}, Пик 2 на Y={self.horiz2_y}")
+
+        # 5. Возвращаем платформу в исходную центральную точку по высоте
+        context.z_platform.move_to(self.y_axis, start_y)
+        while is_platforms_axis_busy(): sleep(0.1)
+
+        # 6. Вызываем функцию поворота платформы
+        self.horizont_platform_correction()
+
+        context.is_meas_in_process = False
+
     def horizont_platform_correction(self):
         hypo = self.chan_dist * context.chip_chans_dy
         cath = self.horiz1_y - self.horiz2_y
@@ -467,14 +527,12 @@ class PMapMeasureProcedures:
             context.logger.log(f"--- Итерация  {i + 1} из {max_iterations} ---")
             context.logger.log("Сканирование левого волокна...")
             self.set_platform(False)
-            # self.scan_step_y()
             self.scan_step_x()
             if context.break_proc:
                 return
 
             context.logger.log("Сканирование правого волокна...")
             self.set_platform(True)
-            # self.scan_step_y()
             self.scan_step_x()
             if context.break_proc:
                 return
@@ -503,19 +561,17 @@ class PMapMeasureProcedures:
         print(context.B_l)
 
     def move_to_bottom_corner(self):
-        # X - Width/2
-        context.z_platform.move(self.x_axis, int(-1 * self.x_scale / 2))
-        # Y - Width/2
-        context.z_platform.move(self.y_axis, int(-1 * self.y_scale / 2))
+        context.z_platform.move(self.x_axis, int(-1 * self.x_scale / 2))  # X - Width/2
+        context.z_platform.move(self.y_axis, int(-1 * self.y_scale / 2))  # Y - Width/2
         wait_for_hardware()
         self.map_min_x = context.z_platform.get_pos(self.x_axis)
         self.map_max_x = self.map_min_x + self.x_scale
         self.map_min_y = context.z_platform.get_pos(self.y_axis)
         self.map_max_y = self.map_min_y + self.y_scale
+        sleep(1)
 
     def scan_step_x(self):
         self.turn_broadband_on()
-        self.map_side = self.platform
         context.is_meas_in_process = True
         context.current_proc = 3
         context.break_proc = False
@@ -523,7 +579,6 @@ class PMapMeasureProcedures:
         self.zero_pos_x = context.z_platform.get_pos(self.x_axis)
         self.zero_pos_y = context.z_platform.get_pos(self.y_axis)
 
-        self.save(20000, 20000, 1000)
         self.move_to_bottom_corner()
         wait_for_hardware()
         if context.break_proc:
@@ -557,7 +612,10 @@ class PMapMeasureProcedures:
         end = time()
         context.logger.log(
             f"Время сканирования :{round((end - start) * 10 ** 3, 3)} ms, Максимальная интенсивность: {maxVal}")
-        self.draw_map(self.ser_data, 1)
+        if self.platform == LEFT_CHAN:
+            self.draw_map(self.ser_data, 1)
+        else:
+            self.draw_map(self.ser_data, 2)
         self.restore()
 
         if self.after_measure == GO_TO_MAX:
@@ -591,8 +649,11 @@ class PMapMeasureProcedures:
         best_config = {}
         start_y1 = context.z_platform.get_pos(int(context.axis[context.y1_line_i]['idx']))
         start_z1 = context.z_platform.get_pos(int(context.axis[context.z1_line_i]['idx']))
+
         self.set_platform(False)
         self.move_to_bottom_corner()
+        map_min_x = context.z_platform.get_pos(int(context.axis[context.y1_line_i]['idx']))
+        map_min_y = context.z_platform.get_pos(int(context.axis[context.z1_line_i]['idx']))
         self.after_measure = GO_TO_ZERO
         self.set_platform(True)
         a = range(0, self.x_scale, self.delta)
@@ -602,8 +663,8 @@ class PMapMeasureProcedures:
             for i_y, y_ in enumerate(a):
                 # if (i_y + i_z) % 2 != 0:
                 #     continue
-                target_y = start_y1 + y_
-                target_z = start_z1 + z_
+                target_y = map_min_x + y_
+                target_z = map_min_y + z_
                 context.z_platform.move_to(int(context.axis[context.y1_line_i]['idx']), target_y)
                 context.z_platform.move_to(int(context.axis[context.z1_line_i]['idx']), target_z)
                 wait_for_hardware()
@@ -613,7 +674,7 @@ class PMapMeasureProcedures:
                 self.ser_data2[z_:z_ + self.delta, y_:y_ + self.delta] = current_power
                 data = self.ser_data2.copy()
                 data[data > 129] = np.min(data)
-                self.draw_map(data, 2)
+                self.draw_map(data, 1)
                 if current_power > global_max_power:
                     global_max_power = current_power
                     best_config = {
@@ -634,13 +695,13 @@ class PMapMeasureProcedures:
                 f"Сигнал ниже порога ({global_max_power:.2f} < {min_power}). Возврат в исходные координаты.")
             context.z_platform.move_to(int(context.axis[context.y1_line_i]['idx']), start_y1)
             context.z_platform.move_to(int(context.axis[context.z1_line_i]['idx']), start_z1)
+            while is_platforms_axis_busy() and not context.break_proc: pass
+            context.is_meas_in_process = False
             return False
-        while is_platforms_axis_busy() and not context.break_proc: pass
-        context.is_meas_in_process = False
-        return False
 
     def yustirovka_all(self, min_power, target_power, max_iterations, tolerance):
         self.turn_broadband_on()
+        self.save(20000, 20000, 1000)
         context.logger.log("Сканирование малой зоны")
         success = self.adjustment_all_2(min_power)
         if context.break_proc: return
