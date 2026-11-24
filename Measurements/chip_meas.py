@@ -352,8 +352,10 @@ class ChipMeasureControl:
                                                 args=[RIGHT_CHAN, user_data & 0XFF, context.chip_chans_dy], daemon=True)
         self.thread_proc.start()
 
-    def aiming_callback(self, sender, app_data, user_data):
-        confirm_msg(message=f'Провести стыковку канала? ', function=self.aiming, args=user_data)
+    @staticmethod
+    def aiming_callback(sender, app_data, user_data):
+        # confirm_msg(message=f'Провести стыковку канала? ', function=self.aiming, args=user_data)
+        confirm_msg(message=f'Провести стыковку канала? ', function=print, args=user_data)
 
     def aiming(self, *args):
         side = args[0]
