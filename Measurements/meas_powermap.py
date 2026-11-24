@@ -125,32 +125,6 @@ class MeasurePowerMap:
         if self.pm_mode == 1:
             self.cross2 = context.pmap_procedures.process_horiz_aiming(self.cross2, 2)
 
-    def measure_powermap_callback(self, sender, app_data, user_data):
-        pm_channel = int(dpg.get_value("pmap_meas_chanel"))  # Вот тут как раз
-        pm_channel2 = int(dpg.get_value("pmap_meas_chanel2"))
-        y_count = int(dpg.get_value("pmap_z_count"))
-        x_scale = float(dpg.get_value("pmap_y_width") / Y_MKM_KOEF)
-        delta = float(dpg.get_value("pmap_delta") / Y_MKM_KOEF)
-        chan_dist = float(dpg.get_value("pmap_chans_dist"))
-        after_measure = GO_TO_ZERO
-        set_powermap_measure_params(pm_channel, pm_channel2, y_count, x_scale, delta, chan_dist, after_measure)
-        if self.pm_mode == 0:
-            if context.pmap_procedures.sync_mode:
-                self.thread_proc = threading.Thread(target=context.pmap_procedures.scan_manual_sync, args=[],
-                                                    daemon=True)
-            else:
-                self.thread_proc = threading.Thread(target=context.pmap_procedures.scan_manual, args=[], daemon=True)
-        elif self.pm_mode == 1:
-            # if context.pmap_procedures.sync_mode:
-            self.thread_proc = threading.Thread(target=context.pmap_procedures.correct_horizont_sync, args=[],
-                                                daemon=True)
-
-            #     # self.thread_proc = threading.Thread(target=self.exec_measure, args=[], daemon=True)
-            # else:
-            #     self.thread_proc = threading.Thread(target=context.pmap_procedures.correct_pitch, args=[],
-            #                                         daemon=True)
-        self.thread_proc.start()
-
     def prepare(self):
         context.pmap_procedures.is_prepared = True
         context.pmap_procedures.ser_data = np.ones(
