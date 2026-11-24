@@ -127,7 +127,8 @@ class Context(metaclass=Singleton):
                    ('controller', int), ('dir_fw', int), ('dir_bw', int), ('side', int)
                    ])
 
-        self.preset_dt = np.dtype([('name', 'U20'), ('pos', 'f4', (13,))])
+        # self.preset_dt = np.dtype([('name', 'U20'), ('pos', 'f4', (13,))])
+        self.preset_dt = np.dtype([('name', 'U15'), ('pos', 'f4', (13,))])
         self.preset_left = np.array([], self.preset_dt)
         self.preset_right = np.array([], self.preset_dt)
         self.preset_table = np.array([], self.preset_dt)
