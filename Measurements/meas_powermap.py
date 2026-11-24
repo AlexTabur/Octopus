@@ -203,19 +203,13 @@ class MeasurePowerMap:
 
         with dpg.group():
             with dpg.group(horizontal=False):
-                dpg.add_text(tag="pmap_meas_power_diff")
-                dpg.add_text(tag="pmap_meas_power_avg")
                 dpg.add_combo(tag="pmap_device", items=[DEV_NOT_FOUND], default_value=DEV_NOT_FOUND,
                               width=200, callback=select_pm)
                 with dpg.group(horizontal=True):
                     with dpg.group():
-                        # dpg.add_text(default_value="Канал измерителя")
-                        dpg.add_text(tag="pmap_meas_power")
                         dpg.add_combo(tag="pmap_meas_chanel", items=["Нет"], default_value='Нет', width=100,
                                       callback=self.select_pm_chan)
                     with dpg.group(tag="pm_pm2", show=False):
-                        # dpg.add_text(default_value="Канал измерителя 2")
-                        dpg.add_text(tag="pmap_meas_power2")
                         dpg.add_combo(tag="pmap_meas_chanel2", items=["Нет"], default_value='Нет', width=100,
                                       callback=self.select_pm_chan2)
         context.pmap_procedures.draw_map(context.pmap_procedures.ser_data, 1)

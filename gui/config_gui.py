@@ -231,19 +231,9 @@ class ConfigCtrl:
                 val1 = 0
                 val2 = 0
                 for i in range(20, 40):
-
                     dpg.set_value(f"PM2100_ch{i}", f'{context.pm_values[i]}')
-
-                    if i == context.meas_powermap.meas_chan:
-                        val1 = context.pm_values[i]
-                        dpg.set_value("pmap_meas_power", f'{val1}')
-                    if i == context.meas_powermap.meas_chan2:
-                        val2 = context.pm_values[i]
-                        dpg.set_value("pmap_meas_power2", f'{val2}')
                     if i == context.chip_meas_ctrl.meas_chan:
                         dpg.set_value("chip_meas_power", f'{context.pm_values[i]}')
-                dpg.set_value("pmap_meas_power_diff", f'{round(float(val1) - float(val2), 3)}')
-                dpg.set_value("pmap_meas_power_avg", f'{round((float(val1) + float(val2)) / 2, 3)}')
 
             if context.device_worker.pm2100_3_ctrl.value_upd:
                 context.device_worker.pm2100_3_ctrl.value_upd = False
