@@ -83,7 +83,7 @@ class PM2100(AbstractDevice):
         except Exception as e:
             print(e)
             self.disconnect()
-            return [0, 0, 0, 0]
+            return [-120.0, -120.0, -120.0, -120.0]
 
     def get_module_cnt(self):
         try:
