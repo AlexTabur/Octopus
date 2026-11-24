@@ -194,10 +194,10 @@ def movement_by_keys(key_vk, key, ctrl, alt):
 
 
 def get_axis_params():
-    get_axis_move_params(AXIS_L_X)
     for i in range(0, 13, 1):
-        dpg.set_value(context.axis[i]['name'] + "Acc", context.axis[i]['acc'])
-        dpg.set_value(context.axis[i]['name'] + "Dec", context.axis[i]['dec'])
+        acc, dec = get_axis_move_params(context.axis[i]['idx'])
+        dpg.set_value(context.axis[i]['name'] + "Acc", acc)
+        dpg.set_value(context.axis[i]['name'] + "Dec", dec)
 
 
 def move_table_(d):
