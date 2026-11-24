@@ -125,7 +125,6 @@ class MeasurePowerMap:
         if self.pm_mode == 1:
             self.cross2 = context.pmap_procedures.process_horiz_aiming(self.cross2, 2)
 
-    # Эта функция должна бы переключать какал измерений, правый или левый
     def measure_powermap_callback(self, sender, app_data, user_data):
         pm_channel = int(dpg.get_value("pmap_meas_chanel"))  # Вот тут как раз
         pm_channel2 = int(dpg.get_value("pmap_meas_chanel2"))
@@ -282,7 +281,7 @@ def select_pm(sender, app_data, user_data):
         dpg.configure_item('pmap_meas_chanel', items=chan_list)
         dpg.configure_item('pmap_meas_chanel2', items=chan_list)
         dpg.set_value('pmap_meas_chanel', chan_list[0])
-        dpg.set_value('pmap_meas_chanel2', chan_list[0])
+        dpg.set_value('pmap_meas_chanel2', chan_list[1])
     else:
         dpg.configure_item('pmap_meas_chanel', items=chan_list)
         dpg.configure_item('pmap_meas_chanel2', items=chan_list)
