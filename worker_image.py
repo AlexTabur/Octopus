@@ -223,19 +223,13 @@ class Image_Worker:
         self.roi.sigRegionChangeFinished.connect(self.on_roi_size_change_end)
         self.load_hist_state()
         self.params_name = f'parameters {self.name_} roi'
-
-        # _pos[0], _pos[1], size[0], size[1] = np.load(f"{self.name_} roi.npy")
-
         self._initialize_array()
         cv2.namedWindow(self.params_name, cv2.WINDOW_NORMAL)
         cv2.resizeWindow(self.params_name, 400, 600)
         self.histogram.sigLevelChangeFinished.connect(self.save_hist_state)
         self.histogram_wg.sigLevelChangeFinished.connect(self.save_hist_state)
-        a = np.array([36, 175, 212, 0, 175, 212])
-        try:
-            a = list(np.load(f"Config/{self.params_name}.npy").astype(int))
-        except Exception as e:
-            print(e)
+        a = [36, 175, 212, 0, 175, 212]
+        self.load_config()
         cv2.createTrackbar('length_threshold', self.params_name, a[0], 100, self.save_parameters)
         cv2.createTrackbar('th1', self.params_name, a[1], 512, self.save_parameters)
         cv2.createTrackbar('th2', self.params_name, a[2], 512, self.save_parameters)
@@ -248,46 +242,41 @@ class Image_Worker:
         self.focus_array = []
         self.focus_array_x = []
         self.table = zmotion.ZMCWrapper()
+        self.config = {}
+        self.config_file_path = f"Config/config.json"
 
     def save_hist_state(self):
+        if self.ready:
+            self.config[f"{self.name_} {self.moving_right_} roi"] = self.roi.saveState()
+            self.config[f"{self.histogram_name} {self.moving_right_}"] = self.histogram.saveState()
+            self.config[f"{self.histogram_wg_name} {self.moving_right_}"] = self.histogram_wg.saveState()
+        self.save_config()
+
+    def save_config(self):
         try:
-            if self.ready:
-                with open(f"Config/{self.name_} {self.moving_right_} roi.json", "w") as f:
-                    a = self.roi.saveState()
-                    json.dump(a, f)
+            json.dump(self.config, self.config_file_path)
         except Exception as e:
-            print("save_hist_state 1", e)
+            print("save_hist_state", e)
+
+    def load_config(self):
         try:
-            if self.ready:
-                with open(f"Config/{self.histogram_name} {self.moving_right_}.json", "w") as f:
-                    json.dump(self.histogram.saveState(), f)
-                with open(f"Config/{self.histogram_wg_name} {self.moving_right_}.json", "w") as g:
-                    json.dump(self.histogram_wg.saveState(), g)
+            with open(self.config_file_path) as f:
+                self.config = json.load(f)
         except Exception as e:
-            print("save_hist_state 2", e)
+            print("load_config", e)
 
     def load_hist_state(self):
-        try:
-            self.ready = False
-            with open(f"Config/{self.name_} {self.moving_right_} roi.json") as f:
-                self.roi.setState(json.load(f))
-            self.ready = True
-        except Exception as e:
-            print("load_hist_state 1", e)
-        try:
-            self.ready = False
-            with open(f"Config/{self.histogram_name} {self.moving_right_}.json") as f:
-                self.histogram.restoreState(json.load(f))
-            with open(f"Config/{self.histogram_wg_name} {self.moving_right_}.json") as g:
-                self.histogram_wg.restoreState(json.load(g))
-            self.ready = True
-        except Exception as e:
-            print("load_hist_state 2", e)
+        self.ready = False
+        self.roi.setState(self.config[f"{self.name_} {self.moving_right_} roi"])
+        self.histogram.restoreState(self.config[f"{self.histogram_name} {self.moving_right_}"])
+        self.histogram_wg.restoreState(self.config[f"{self.histogram_wg_name} {self.moving_right_}"])
+        self.ready = True
 
     def _initialize_array(self):
         size = self.roi.size()
         _pos = self.roi.pos()
-        np.save(f"Config/{self.name_} roi", np.array([_pos.x(), _pos.y(), size[0], size[1]]))
+        self.config[f"{self.name_} roi"] = [_pos.x(), _pos.y(), size[0], size[1]]
+        self.save_config()
         if size[0] > 0 and size[1] > 0:
             width, height = int(size[0]), int(size[1])
             self.img_array = np.zeros((self.max_n, height, width), dtype=np.uint8)
@@ -325,7 +314,7 @@ class Image_Worker:
             self.computer_vision(chip_img)
 
     def save_parameters(self, val):
-        a = np.array([36, 175, 212, 0, 175, 212])
+        a = [36, 175, 212, 0, 175, 212]
         if self.ready2:
             a[0] = cv2.getTrackbarPos('length_threshold', self.params_name)
             a[1] = cv2.getTrackbarPos('th1', self.params_name)
@@ -333,7 +322,8 @@ class Image_Worker:
             a[3] = cv2.getTrackbarPos('canny_aperture_size', self.params_name)
             a[4] = cv2.getTrackbarPos('th1', self.params_name)
             a[5] = cv2.getTrackbarPos('th2', self.params_name)
-            np.save(f"Config/{self.params_name}", a)
+            self.config[f"{self.params_name}"] = a
+            self.save_config()
         return
 
     def computer_vision(self, chip_img):
@@ -428,7 +418,7 @@ class Image_Worker:
                 a6 = self.x1 + a6[0], self.y1 + a6[1]
             else:
                 a1, a2 = func(0, int(width * 0.3), -20, int(height * 0.2))
-                a3, a4 = func(0, int(width * 0.3), int(height * 0.8)+20, int(height - 1))
+                a3, a4 = func(0, int(width * 0.3), int(height * 0.8) + 20, int(height - 1))
                 a5, a6 = func(int(width * 0.8), int(width - 1), int(height * 0.15), int(height * 0.6))
                 a1 = self.x1 + a1[0], self.y1 + a1[1]
                 a2 = self.x1 + a2[0], self.y1 + a2[1]

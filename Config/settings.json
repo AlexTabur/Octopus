@@ -1,0 +1,14 @@
+{
+	"CONFIGURATION":{
+		"speed_value_platform": 15000,
+		"step_value_platform": 80,
+		"speed_value_table": 1000,
+		"step_value_table": 25,
+		"spectrum_laser_power": 8,
+		"spectrum_report_path": "Reports/1008_13.csv",
+	},
+	"POSITIONING":{
+		
+	}
+}
+

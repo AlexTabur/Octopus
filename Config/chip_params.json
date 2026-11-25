@@ -1,0 +1,14 @@
+{
+	"CHIP_1":{
+		"chip_chans_left" : 16,
+		"chip_chans_right" : 16,
+		"chip_chans_dy" : 127,
+		"chips_dy" : 19100
+	},
+	"CHIP_2":{
+		"channels_left" : 8,
+		"channels_right" : 16,
+		"channels_dy" : 127,
+		"chips_dy" : 2000
+	}
+}

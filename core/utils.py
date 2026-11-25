@@ -1,3 +1,4 @@
+import json
 import math
 import re
 import configparser
@@ -41,51 +42,35 @@ def get_int_param(config, section, option, default):
         return default
 
 
-def get_str_param(config, section, option, default):
-    if config.has_option(section, option):
-        return config.get(section, option)
-    else:
-        return default
-
-
 def load_parameters():
-    config = configparser.ConfigParser()
-    config.read(r'Config\settings.ini')  # , encoding="windows-1252")
-    context.speed_value_platform = get_int_param(config, 'CONFIGURATION', 'platforms_speed', 1000)
-    context.step_value_platform = get_int_param(config, 'CONFIGURATION', 'platforms_step', 10)
-    context.speed_value_table = get_int_param(config, 'CONFIGURATION', 'table_speed', 1000)
-    context.step_value_table = get_int_param(config, 'CONFIGURATION', 'table_step', 10)
-    context.spectrum_report_path = get_str_param(config, 'CONFIGURATION', 'spectrum_report', "report.csv")
-    context.spectrum_laser_power = get_int_param(config, 'CONFIGURATION', 'spectrum_laser_power', 10)
-    config.read(r'Config\chip_params.ini')  # , encoding="utf-8-sig")
-    if config.has_option('COMMON', 'chip_list'):
-        context.chip_list = config.get('COMMON', 'chip_list').split(',')
-    else:
-        context.chip_list = ['None']
+    with open('Config/settings.json') as f:
+        config = json.load(f)
+    with open('Config/chip_params.json') as f:
+        chip_config = json.load(f)
+    for j in config:
+        setattr(context, j, config[j])
+    context.chip_list = [_ for _ in chip_config]
 
 
 def save_parameters():
-    config = configparser.ConfigParser()
-    config.read(r'Config\settings.ini')  # , encoding="windows-1252")
-    if not config.has_section('CONFIGURATION'):
-        config.add_section('CONFIGURATION')
-    if not config.has_section('POSITIONING'):
-        config.add_section('POSITIONING')
-    config.set('CONFIGURATION', 'platforms_speed', str(context.speed_value_platform))
-    config.set('CONFIGURATION', 'platforms_step', str(context.step_value_platform))
-    config.set('CONFIGURATION', 'table_speed', str(context.speed_value_table))
-    config.set('CONFIGURATION', 'table_step', str(context.step_value_table))
-    config.set('CONFIGURATION', 'spectrum_report', str(context.spectrum_report_path))
-
-    with open(r'Config\settings.ini', mode='w') as configfile:  # encoding="windows-1252"  # save
-        config.write(configfile)
+    config = {
+        "speed_value_platform": context.speed_value_platform,
+        "step_value_platform": context.step_value_platform,
+        "speed_value_table": context.speed_value_table,
+        "step_value_table": context.step_value_table,
+        "spectrum_report_path": context.spectrum_report_path
+    }
+    with open('Config/settings.ini', mode='w') as f:
+        json.dump(config, f)
 
 
 def save_presets():
-    np.save(r'Config\presets_left.npy', context.preset_left)
-    np.save(r'Config\presets_right.npy', context.preset_right)
-    np.save(r'Config\presets_table.npy', context.preset_table)
-    np.save(r'Config\presets.npy', context.preset_all)
+    config = {
+        "preset_left": context.preset_left,
+        "preset_table": context.preset_right,
+        "preset_right": context.preset_table,
+        "preset_all": context.preset_all
+    }
 
 
 def load_presets():
@@ -100,12 +85,10 @@ def load_presets():
 
 def load_chip_params(chip_name):
     config = configparser.ConfigParser()
-    config.read(r'Config\chip_params.ini')  # , encoding="utf-8-sig")
-
-    context.chip_chans_left = get_int_param(config, chip_name, 'channels_left', 16)
-    context.chip_chans_right = get_int_param(config, chip_name, 'channels_right', 16)
-    context.chip_chans_dy = get_int_param(config, chip_name, 'channels_dy', 127)
-    context.chips_dy = get_int_param(config, chip_name, 'chips_dy', 20000)
+    config.read(r'Config\chip_params.ini')
+    chip_config = {}
+    for j in config:
+        setattr(context, j, config[j])
 
 
 def text_to_float(text):

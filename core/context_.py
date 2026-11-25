@@ -63,15 +63,17 @@ class Context(metaclass=Singleton):
         self.z_controllers = None
         self.texture_reg = None
 
-        self.main_width = 1470//2
+        self.main_width = 1470 // 2
         self.main_height = 800
         self.current_axis = -1
         self.ctrl_mode = CTRL_MODE_CONT
-        self.step_value_platform = 1000
-        self.step_value_table = 1000
-        self.speed_value_platform = 15000
-        self.speed_value_table = 15000
+        # settings.json (settings.ini)
+        self.speed_value_platform = 1000
+        self.step_value_platform = 10
+        self.speed_value_table = 1000
+        self.step_value_table = 10
         self.spectrum_report_path = "report.csv"
+        self.spectrum_laser_power = 10
 
         self.ctrl_by_keyboard = False
         self.lock_left_side = False
@@ -158,8 +160,6 @@ class Context(metaclass=Singleton):
         self.z_platform = zmotion.ZMCWrapper()
         self.z_table = zmotion.ZMCWrapper()
 
-        self.spectrum_laser_power = 9.5
-
         self.comports = None
         self.platforms_controller_ip = "192.168.1.11"
         self.table_controller_ip = "192.168.1.12"
@@ -172,8 +172,8 @@ class Context(metaclass=Singleton):
         self.enabled_btn_theme = None
         self.disabled_btn_theme = None
 
-        # Chip measurements params
-        self.chip_list = None
+        # chip_params.json
+        self.chip_list = ['None']
         self.chip_chans_left = 16
         self.chip_chans_right = 16
         self.chip_chans_dy = 127
@@ -187,4 +187,3 @@ class Context(metaclass=Singleton):
         self.aim_x_speed = [120, 120, 120, 120, 100]
 
         self.device_worker = None
-
